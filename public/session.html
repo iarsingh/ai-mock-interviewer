@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("aimi-theme");
+          var theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Mock Interviewer</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="interview-page">
+    <main class="shell">
+      <section class="topbar session-app-header">
+        <div class="brand-block">
+          <p class="eyebrow">Open-source interview lab</p>
+          <div class="brand-title">
+            <img class="brand-icon" src="/favicon.svg" alt="" aria-hidden="true">
+            <h1>AI Mock Interviewer</h1>
+          </div>
+          <p class="subtitle">Real-time voice practice for engineering interviews.</p>
+        </div>
+        <div class="top-actions">
+          <div class="nav-group quick-actions">
+            <button id="openCommandPalette" class="ghost link-button small command-button" type="button" title="Command palette (Ctrl/Cmd + K)"><span>Commands</span><kbd>&#8984;K</kbd></button>
+            <a class="ghost link-button small" href="/dashboard.html">Skills dashboard</a>
+            <a class="ghost link-button small" href="/contact.html">Contact</a>
+            <button id="resetLayout" class="ghost link-button small" type="button">Reset layout</button>
+            <a class="ghost link-button small" href="https://github.com/iarsingh" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a class="ghost link-button small linkedin-button" href="https://www.linkedin.com/in/iamarsingh/" target="_blank" rel="noopener noreferrer" aria-label="Connect with iarsingh on LinkedIn">LinkedIn</a>
+            <a class="ghost link-button small instagram-button" href="https://www.instagram.com/iarsingh/" target="_blank" rel="noopener noreferrer" aria-label="Follow iarsingh on Instagram">Instagram</a>
+            <a class="ghost link-button small topmate-button" href="https://topmate.io/iamarsingh" target="_blank" rel="noopener noreferrer" aria-label="Book a one-to-one mentorship session on Topmate">&#128197; Book 1:1</a>
+            <a class="ghost link-button small coffee-button" href="https://www.buymeacoffee.com/iarsingh" target="_blank" rel="noopener noreferrer" title="Buy me a coffee">&#9749; Coffee</a>
+            <button class="theme-toggle" type="button" data-action="toggle-theme" aria-pressed="false" aria-label="Toggle dark mode" title="Toggle dark mode">
+              <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;&#65039;</span>
+              <span class="theme-icon theme-icon-dark" aria-hidden="true">&#127769;</span>
+            </button>
+          </div>
+
+          <div class="topbar-stats" title="All-time across your interviews">
+            <div class="topbar-stat">
+              <strong id="topbarAnswered">0</strong>
+              <span>Answered</span>
+            </div>
+            <div class="topbar-stat">
+              <strong id="topbarScore">0%</strong>
+              <span id="topbarScoreLabel">Progress</span>
+            </div>
+          </div>
+
+          <a class="ghost link-button small admin-report-link" href="/admin.html" data-auth-admin-only hidden><span aria-hidden="true">▦</span> Admin report</a>
+
+          <div class="nav-group status-group">
+            <div class="status" id="clockBadge">
+              <span class="status-label">Local time</span><span id="clockText">--</span>
+            </div>
+            <div class="status" id="sessionTimerBadge">
+              <span class="dot dot-brand"></span>
+              <span class="status-label">Session</span><span id="sessionTimerText">00:00</span>
+            </div>
+            <div class="status" id="status">
+              <span class="dot"></span>
+              <span class="status-label">AI runtime</span><span id="statusText">Checking local runtime</span>
+            </div>
+          </div>
+
+          <div class="nav-group nav-auth" data-auth-state="in" hidden>
+            <div class="account-chip">
+              <span class="avatar" data-auth="initial">?</span>
+              <span data-auth="name">Account</span>
+              <span class="role-badge" data-auth="role" hidden></span>
+            </div>
+            <button class="ghost link-button small" type="button" data-action="sign-out">Sign out</button>
+          </div>
+          <a class="ghost link-button small nav-auth" href="/signin.html" data-auth-state="out" hidden>Sign in</a>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel interview-sidebar">
+          <div class="roadmap-head">
+            <p class="eyebrow">Interview Roadmap</p>
+          </div>
+          <div id="interviewRoadmap" class="roadmap-list"></div>
+          <div class="roadmap-head">
+            <p class="eyebrow">Technology Dashboard</p>
+          </div>
+          <div id="techDashboardSidebar" class="bar-chart tech-dashboard-sidebar"></div>
+          <div class="sidebar-head">
+            <p class="eyebrow">Interviews</p>
+            <button id="addInterview" class="ghost small" type="button">New</button>
+          </div>
+          <div id="interviewList" class="interview-list"></div>
+          <div class="remove-from-row">
+            <input id="removeFromNumber" type="number" min="1" placeholder="#">
+            <button id="removeFromButton" class="danger small" type="button">Remove interview # and later</button>
+          </div>
+          <div class="history-head">
+            <p class="eyebrow">Progress History</p>
+          </div>
+          <div id="progressHistory" class="history-list"></div>
+        </aside>
+
+        <aside class="panel setup">
+          <div class="setup-heading">
+            <div>
+              <p class="eyebrow">Interview Setup</p>
+              <strong>Configure your round</strong>
+            </div>
+          </div>
+          <div class="session-card">
+            <p class="eyebrow">Session</p>
+            <strong id="interviewLabel">Interview 1</strong>
+            <div class="session-actions">
+              <button id="previousInterview" class="ghost small" type="button">Previous interview</button>
+              <button id="nextInterview" class="ghost small" type="button">Next interview</button>
+              <button id="resetInterview" class="danger small" type="button">Reset current</button>
+            </div>
+          </div>
+          <div class="mode-card">
+            <p class="eyebrow">Mode</p>
+            <label class="mode-option">
+              <input type="radio" name="interviewMode" value="live" checked>
+              <span>Live mock interview</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="interviewMode" value="manual">
+              <span>Mock interview</span>
+            </label>
+          </div>
+          <section class="career-dashboard" aria-labelledby="careerDashboardTitle">
+            <div class="career-dashboard-head">
+              <div>
+                <p class="eyebrow">Career Skills Dashboard</p>
+                <strong id="careerDashboardTitle">Choose your interview track</strong>
+              </div>
+              <span class="career-dashboard-hint">Skills are grouped by role</span>
+            </div>
+            <div class="career-track-grid">
+              <button class="career-track" type="button" data-role-profile="devops" aria-pressed="false">
+                <span class="career-track-icon" aria-hidden="true">DO</span>
+                <span class="career-track-copy"><strong>DevOps Engineer</strong><small>Delivery, cloud &amp; reliability</small></span>
+                <span class="career-skill-list"><span>Kubernetes</span><span>Docker</span><span>Terraform</span><span>CI/CD</span><span>Linux</span><span>Observability</span></span>
+              </button>
+              <button class="career-track" type="button" data-role-profile="frontend" aria-pressed="false">
+                <span class="career-track-icon" aria-hidden="true">FE</span>
+                <span class="career-track-copy"><strong>Frontend Developer</strong><small>Interfaces, performance &amp; UX</small></span>
+                <span class="career-skill-list"><span>HTML/CSS</span><span>JavaScript</span><span>React</span><span>TypeScript</span><span>Testing</span><span>Web performance</span></span>
+              </button>
+              <button class="career-track" type="button" data-role-profile="backend" aria-pressed="false">
+                <span class="career-track-icon" aria-hidden="true">BE</span>
+                <span class="career-track-copy"><strong>Backend Developer</strong><small>APIs, data &amp; distributed systems</small></span>
+                <span class="career-skill-list"><span>Python</span><span>FastAPI</span><span>Go</span><span>REST APIs</span><span>Databases</span><span>System design</span></span>
+              </button>
+              <button class="career-track" type="button" data-role-profile="mlops" aria-pressed="false">
+                <span class="career-track-icon" aria-hidden="true">ML</span>
+                <span class="career-track-copy"><strong>MLOps Engineer</strong><small>Models, platforms &amp; production AI</small></span>
+                <span class="career-skill-list"><span>Python</span><span>MLflow</span><span>Vertex AI</span><span>Kubeflow</span><span>Model serving</span><span>Monitoring</span></span>
+              </button>
+            </div>
+          </section>
+          <label>
+            Interviewer mood
+            <select id="interviewerMood">
+              <option value="neutral">😐 Neutral</option>
+              <option value="friendly">🙂 Friendly</option>
+              <option value="strict">🧐 Strict</option>
+            </select>
+          </label>
+          <details class="setup-collapse">
+          <summary>Advanced setup (technology, CV/JD, custom skills)</summary>
+          <label>
+            Technology practice
+            <select id="technology">
+              <option value="all">All technologies</option>
+              <optgroup label="DevOps &amp; Cloud">
+                <option value="kubernetes">Kubernetes / GKE</option><option value="docker">Docker / Containers</option><option value="gcp">Google Cloud Platform</option><option value="terraform">Terraform / IaC</option><option value="ansible">Ansible / config management</option><option value="cicd">CI/CD / GitOps</option><option value="sre">SRE / reliability</option><option value="observability">Observability</option><option value="security">Cloud / DevSecOps security</option><option value="networking">Cloud networking</option><option value="linux">Linux / systems</option><option value="platform">Platform engineering</option>
+              </optgroup>
+              <optgroup label="Frontend Development">
+                <option value="frontend">HTML, CSS, JavaScript, React &amp; TypeScript</option>
+              </optgroup>
+              <optgroup label="Backend Development">
+                <option value="python">Python automation</option><option value="fastapi">FastAPI backend</option><option value="go">Go programming</option><option value="backend">APIs, databases &amp; system design</option><option value="scripting">Scripting &amp; automation</option><option value="coding">Coding exercises</option>
+              </optgroup>
+              <optgroup label="MLOps &amp; AI">
+                <option value="mlops">MLOps / Vertex AI</option><option value="llmops">LLMOps / GenAI production</option>
+              </optgroup>
+              <optgroup label="General Interview Skills">
+              <option value="tech-risk-technical">Technology risk - technical</option>
+              <option value="tech-risk-behavioral">Technology risk - behavioural</option>
+              <option value="hr-behavioral">HR / behavioral basics</option>
+              <option value="basic-concepts">Basic / one-liner concepts</option>
+              <option value="scenario">Scenario-based questions</option>
+              </optgroup>
+            </select>
+          </label>
+          <label>
+            Question order
+            <select id="questionOrder">
+              <option value="random">Random mock questions</option>
+              <option value="sequence">Sequential questions</option>
+            </select>
+          </label>
+          <details class="setup-details">
+            <summary>Custom skills</summary>
+            <div class="details-content">
+              <label>
+                Skill name
+                <input id="customSkillName" placeholder="Java, React, AWS, Spring Boot...">
+              </label>
+              <label>
+                Questions
+                <textarea id="customSkillQuestions" rows="5" placeholder="Add one question per line. If empty, the app creates starter questions for this skill."></textarea>
+              </label>
+              <div class="button-row">
+                <button id="addCustomSkill" class="ghost" type="button">Add skill</button>
+                <button id="deleteCustomSkill" class="danger" type="button">Delete selected</button>
+              </div>
+              <div id="customSkillList" class="custom-skill-list"></div>
+            </div>
+          </details>
+          <label>
+            30-day practice plan
+            <select id="practiceDay">
+              <option value="all">All questions</option>
+            </select>
+          </label>
+          <label>
+            Mock interview set
+            <select id="mockSet">
+              <option value="all">No fixed set</option>
+              <option value="random-bank">Random full bank mock interview</option>
+              <option value="custom-jd">Custom JD mock interview</option>
+            </select>
+          </label>
+          <details class="setup-details">
+            <summary>Role and focus</summary>
+            <div class="details-content">
+              <label>
+                Target role
+                <input id="role" value="Senior GCP DevOps / SRE / Cloud Engineer">
+              </label>
+              <label>
+                Seniority
+                <select id="level">
+                  <option>senior</option>
+                  <option>mid-senior</option>
+                  <option>lead</option>
+                  <option>staff</option>
+                  <option>entry</option>
+                </select>
+              </label>
+              <label>
+                Focus areas
+                <textarea id="topic" rows="4">GKE expert, Terraform advanced, Python automation, SRE SLI/SLO/error budgets, Prometheus/Grafana/OpenTelemetry, ArgoCD GitOps, GCP security, platform engineering, Vertex AI and MLOps basics</textarea>
+              </label>
+            </div>
+          </details>
+          <details class="setup-details">
+            <summary>CV and job description</summary>
+            <div class="details-content">
+              <label>
+                CV / profile context
+                <textarea id="cvText" rows="7" placeholder="Paste your resume text here. It is saved in this browser."></textarea>
+              </label>
+              <label>
+                Upload CV file (e.g. resume downloaded from Naukri)
+                <input id="cvPdf" type="file" accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,image/*">
+              </label>
+              <div class="button-row">
+                <button id="importCvFile" class="ghost" type="button">Import CV file</button>
+              </div>
+              <label>
+                Market skills / job description
+                <textarea id="jdText" rows="7" placeholder="Keep the market skill benchmark here, or paste a JD before a custom JD mock."></textarea>
+              </label>
+              <label>
+                Import public JD URL
+                <input id="jdUrl" placeholder="https://company.com/careers/job...">
+              </label>
+              <label>
+                Upload JD file
+                <input id="jdPdf" type="file" accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,image/*">
+              </label>
+              <div class="button-row">
+                <button id="importJd" class="ghost" type="button">Import URL</button>
+                <button id="importJdPdf" class="ghost" type="button">Import file</button>
+              </div>
+              <button id="saveContext" class="ghost" type="button">Save CV and JD</button>
+            </div>
+          </details>
+          <label class="toggle">
+            <input id="autoNext" type="checkbox" checked>
+            <span>Live auto-advance</span>
+          </label>
+          <label class="toggle">
+            <input id="realTimeSimulation" type="checkbox" checked>
+            <span>Real-time simulation</span>
+          </label>
+          </details>
+        </aside>
+
+        <section class="panel interview">
+          <div class="stage-head">
+            <div>
+              <p class="eyebrow">Live Interview Stage</p>
+              <strong>Voice-led technical round</strong>
+            </div>
+            <div class="stage-head-right">
+              <div class="stage-pills" aria-label="Interview capabilities">
+                <span>Question audio</span>
+                <span>Speech transcript</span>
+                <span>Auto advance</span>
+              </div>
+              <div class="stage-window-controls">
+                <button id="minimizeInterview" class="ghost small" type="button" title="Minimize" aria-label="Minimize interview panel">&#8722;</button>
+                <button id="toggleFullscreen" class="ghost small" type="button" title="Full screen" aria-label="Full screen interview panel">&#9974;</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="call-stage">
+            <div class="call-tile ai-tile" id="aiTile">
+              <div class="call-tile-head">
+                <span class="call-avatar"><img src="/ai-avatar.svg" alt="" aria-hidden="true"></span>
+                <div>
+                  <strong>AI Interviewer <span id="aiMoodEmoji" aria-hidden="true">😐</span></strong>
+                  <small id="aiTileState">Ready</small>
+                </div>
+              </div>
+              <img class="ai-mascot" src="/ai-avatar.svg" alt="AI Interviewer avatar">
+              <div class="ai-waveform" id="aiWaveform" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+            <div class="call-tile user-tile" id="userTile">
+              <div class="call-tile-head">
+                <span class="call-avatar">You</span>
+                <div>
+                  <strong>You</strong>
+                  <small id="userTileState">Camera off</small>
+                </div>
+              </div>
+              <div class="user-video-wrap">
+                <video id="userVideo" autoplay playsinline muted></video>
+                <div class="user-video-placeholder" id="userVideoPlaceholder">
+                  <span aria-hidden="true">&#128100;</span>
+                  <p>Camera is off</p>
+                </div>
+              </div>
+              <div class="call-tile-actions">
+                <button id="toggleCamera" class="ghost small" type="button">Enable camera</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage-split-control">
+            <span>AI Interviewer</span>
+            <input id="stageSplit" type="range" min="30" max="70" value="57" step="1" aria-label="Adjust the split between the AI Interviewer and your panel">
+            <span>You</span>
+          </div>
+
+          <div class="question-row">
+            <div>
+              <p class="eyebrow">Question</p>
+              <h2 id="question">This is a mock interview. Click New question to generate a random DevOps, MLOps, Kubernetes, GCP, Terraform, Python, or scenario-based question.</h2>
+            </div>
+            <div class="question-stats">
+              <span id="questionCounter">Question 1</span>
+              <span id="answerCounter">0 answered</span>
+            </div>
+          </div>
+          <div class="question-audio">
+            <button id="speakQuestion" class="ghost" type="button">Read question</button>
+            <button id="stopQuestionAudio" class="ghost" type="button">Stop audio</button>
+            <label class="audio-field">
+              Voice tone
+              <select id="questionVoiceTone">
+                <option value="natural">Natural</option>
+                <option value="deep">Deeper</option>
+                <option value="clear">Clear</option>
+                <option value="energetic">Energetic</option>
+              </select>
+            </label>
+            <label class="toggle compact">
+              <input id="autoReadQuestion" type="checkbox" checked>
+              <span>Auto-read questions</span>
+            </label>
+            <span id="questionAudioState">Question audio ready</span>
+          </div>
+
+          <div class="stage-actions">
+            <button id="newQuestion" class="primary" type="button">Generate new question</button>
+            <button id="previousQuestion" class="ghost" type="button">&larr; Previous</button>
+            <button id="nextQuestion" class="ghost" type="button">Next &rarr;</button>
+            <button id="skipQuestion" class="ghost" type="button">Skip question</button>
+            <button id="requestHint" class="ghost" type="button">Request hint</button>
+          </div>
+          <div class="hint-box" id="hintBox" hidden>
+            <p class="eyebrow">Hint</p>
+            <p id="hintText"></p>
+          </div>
+
+          <div class="progress-track" aria-hidden="true">
+            <span id="sessionProgress"></span>
+          </div>
+
+          <div class="recorder">
+            <button id="micButton" class="record" type="button" title="Toggle mic (Ctrl/Cmd + Shift + M)">Start mic</button>
+            <div class="mic-visualizer" id="micVisualizer" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <span id="recordingBadge" class="recording-badge" hidden><i></i>REC <b id="recordingTimer">00:00</b></span>
+            <button id="clearButton" class="ghost" type="button">Clear answer</button>
+            <label class="audio-field">
+              Mic accent
+              <select id="micLanguage">
+                <option value="en-IN">English India</option>
+                <option value="en-US">English US</option>
+                <option value="en-GB">English UK</option>
+                <option value="en-AU">English Australia</option>
+                <option value="en-CA">English Canada</option>
+              </select>
+            </label>
+            <label class="audio-field">
+              Answer pause
+              <select id="answerPause">
+                <option value="6500">Focused</option>
+                <option value="9500">Thoughtful</option>
+                <option value="13000">Long</option>
+              </select>
+            </label>
+            <span id="micState">Microphone idle</span>
+          </div>
+
+          <div class="confidence-panel" id="confidencePanel" hidden>
+            <div class="confidence-row">
+              <span class="eyebrow">Confidence</span>
+              <div class="confidence-track"><div class="confidence-fill" id="confidenceFill"></div></div>
+              <span id="confidenceValue">0%</span>
+            </div>
+            <div class="confidence-row">
+              <span class="eyebrow">Pace</span>
+              <span id="paceValue">-- wpm</span>
+              <span class="eyebrow">Filler words</span>
+              <span id="fillerValue">0</span>
+            </div>
+          </div>
+
+          <label class="answer-label">
+            <span id="answerLabel">Answer transcript</span>
+            <textarea id="answer" rows="10" placeholder="Speak your answer or type it here."></textarea>
+          </label>
+          <div class="answer-meta">
+            <span id="answerCount">0 characters</span>
+            <span>Ctrl/Command + Enter to submit</span>
+          </div>
+
+          <button id="feedbackButton" class="primary wide" type="button">Save answer</button>
+        </section>
+
+        <section class="panel feedback">
+          <div class="feedback-head">
+            <p class="eyebrow">Final Feedback</p>
+            <div class="button-row-inline">
+              <span id="autosaveIndicator" class="autosave-indicator" hidden>Saved</span>
+              <button id="endInterview" class="ghost small" type="button">End interview</button>
+              <button id="downloadReport" class="ghost small" type="button">Download .md</button>
+              <button id="downloadReportJson" class="ghost small" type="button">Download .json</button>
+              <button id="printReport" class="ghost small" type="button">Print / PDF</button>
+              <button id="copyButton" class="ghost small" type="button">Copy</button>
+            </div>
+          </div>
+          <article id="feedbackOutput" class="markdown">
+            Your final interview feedback will appear here after you end the interview.
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <div id="mediaPermissionBackdrop" class="media-permission-backdrop" hidden>
+      <section class="media-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaPermissionTitle" aria-describedby="mediaPermissionDescription">
+        <div class="media-permission-brand"><img src="/favicon.svg" alt=""><span>Device check</span></div>
+        <p class="eyebrow">Before your interview</p>
+        <h2 id="mediaPermissionTitle">Set up camera, microphone &amp; headphones</h2>
+        <p id="mediaPermissionDescription">Allow access so the interviewer can hear you, show your camera when enabled, and play questions through your preferred audio output.</p>
+        <div class="media-permission-list">
+          <div><span class="device-permission-icon camera-icon" aria-hidden="true">CAM</span><span><strong>Camera</strong><small>Used only when you enable video</small></span><b id="cameraPermissionState">Not checked</b></div>
+          <div><span class="device-permission-icon mic-icon" aria-hidden="true">MIC</span><span><strong>Microphone</strong><small>Transcribes your spoken answers</small></span><b id="micPermissionState">Not checked</b></div>
+          <div><span class="device-permission-icon audio-icon" aria-hidden="true">HP</span><span><strong>Headphones / speaker</strong><small>Plays interviewer questions privately</small></span><b id="audioPermissionState">Not checked</b></div>
+        </div>
+        <label class="permission-accent-field" for="permissionAccent">
+          <span><strong>Your speaking accent</strong><small>Improves speech-to-text recognition</small></span>
+          <select id="permissionAccent">
+            <option value="en-IN">English — India</option>
+            <option value="en-US">English — United States</option>
+            <option value="en-GB">English — United Kingdom</option>
+            <option value="en-AU">English — Australia</option>
+            <option value="en-CA">English — Canada</option>
+          </select>
+        </label>
+        <p id="mediaPermissionMessage" class="media-permission-message">Your browser will show its native camera and microphone permission prompt.</p>
+        <div class="media-permission-actions">
+          <button id="allowMediaPermissions" class="primary" type="button">Allow &amp; check devices</button>
+          <button id="skipMediaPermissions" class="ghost" type="button">Not now</button>
+        </div>
+        <small class="media-privacy-note">Device streams are stopped after this check and are not recorded by the permission screen.</small>
+      </section>
+    </div>
+
+    <div class="command-palette-backdrop" id="commandPaletteBackdrop">
+      <div class="command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <input id="commandPaletteInput" class="command-palette-input" type="text" placeholder="Type a command..." autocomplete="off">
+        <div id="commandPaletteList" class="command-palette-list"></div>
+        <div class="command-palette-hint">
+          <span>&uarr;&darr; navigate</span>
+          <span>&crarr; run</span>
+          <span>esc close</span>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+    <script src="/topbar-stats.js"></script>
+    <script src="/theme.js"></script>
+    <script src="/auth-client.js"></script>
+  </body>
+</html>
