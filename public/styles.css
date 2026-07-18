@@ -321,6 +321,7 @@ h2 {
 .session-app-header .quick-actions { grid-area: quick; justify-content: flex-end; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .session-app-header .quick-actions .link-button, .session-app-header .quick-actions .theme-toggle { min-height: 32px; }
 .session-app-header .command-button { gap: 7px; }
+.setup-shortcut { border-color: rgba(109,91,246,.38); background: var(--brand-soft); color: var(--brand); }
 .session-app-header .command-button kbd { padding: 2px 5px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--panel-soft); color: var(--muted); font: inherit; font-size: 9px; }
 .session-app-header .topbar-stats { grid-area: stats; min-height: 48px; padding: 5px 8px; border-radius: 13px; background: var(--panel-soft); }
 .session-app-header .status-group { grid-area: status; display: grid; grid-template-columns: auto auto minmax(150px,1fr); gap: 7px; }

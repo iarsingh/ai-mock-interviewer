@@ -4022,6 +4022,11 @@ loadPracticeSources().then(() => {
   loadState();
   updateAnswerEditor();
   checkHealth();
+  if (window.location.hash === "#advanced-setup") {
+    const advancedSetup = document.querySelector("#advanced-setup");
+    advancedSetup.open = true;
+    requestAnimationFrame(() => advancedSetup.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
 });
 
 [els.role, els.level, els.topic, els.cvText, els.jdText, els.questionOrder, els.autoNext].forEach((input) => {
