@@ -174,8 +174,8 @@
               <option value="strict">🧐 Strict</option>
             </select>
           </label>
-          <details class="setup-collapse">
-          <summary>Advanced setup (technology, CV/JD, custom skills)</summary>
+          <details class="setup-collapse" open>
+          <summary>Advanced setup — custom skills, CV and JD imports</summary>
           <label>
             Technology practice
             <select id="technology">
@@ -208,7 +208,7 @@
               <option value="sequence">Sequential questions</option>
             </select>
           </label>
-          <details class="setup-details">
+          <details class="setup-details" open>
             <summary>Custom skills</summary>
             <div class="details-content">
               <label>
@@ -223,6 +223,7 @@
                 <button id="addCustomSkill" class="ghost" type="button">Add skill</button>
                 <button id="deleteCustomSkill" class="danger" type="button">Delete selected</button>
               </div>
+              <p id="customSkillStatus" class="custom-skill-status" role="status" aria-live="polite"></p>
               <div id="customSkillList" class="custom-skill-list"></div>
             </div>
           </details>
@@ -263,7 +264,7 @@
               </label>
             </div>
           </details>
-          <details class="setup-details">
+          <details class="setup-details" open>
             <summary>CV and job description</summary>
             <div class="details-content">
               <label>
@@ -294,6 +295,7 @@
                 <button id="importJdPdf" class="ghost" type="button">Import file</button>
               </div>
               <button id="saveContext" class="ghost" type="button">Save CV and JD</button>
+              <p id="contextImportStatus" class="context-import-status" role="status" aria-live="polite">CV and JD files up to 5 MB are supported.</p>
             </div>
           </details>
           <label class="toggle">
