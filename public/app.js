@@ -4022,11 +4022,23 @@ loadPracticeSources().then(() => {
   loadState();
   updateAnswerEditor();
   checkHealth();
-  if (window.location.hash === "#advanced-setup") {
-    const advancedSetup = document.querySelector("#advanced-setup");
-    advancedSetup.open = true;
-    requestAnimationFrame(() => advancedSetup.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }
+  revealSetupSection(window.location.hash);
+});
+
+function revealSetupSection(hash) {
+  if (!['#advanced-setup', '#cv-jd-setup'].includes(hash)) return;
+  const advancedSetup = document.querySelector('#advanced-setup');
+  const target = document.querySelector(hash);
+  if (!advancedSetup || !target) return;
+  advancedSetup.open = true;
+  if (target instanceof HTMLDetailsElement) target.open = true;
+  requestAnimationFrame(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
+document.querySelector('#openCvJdSetup')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  history.replaceState(null, '', '#cv-jd-setup');
+  revealSetupSection('#cv-jd-setup');
 });
 
 [els.role, els.level, els.topic, els.cvText, els.jdText, els.questionOrder, els.autoNext].forEach((input) => {
