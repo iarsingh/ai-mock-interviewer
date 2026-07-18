@@ -14,6 +14,7 @@ const PORT = Number(process.env.PORT || 3030);
 const HOST = process.env.HOST || "127.0.0.1";
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
+const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || "30m";
 const LLM_PROVIDER = process.env.LLM_PROVIDER || "ollama";
 const OFFLINE_ONLY = process.env.OFFLINE_ONLY === "1" || process.env.OFFLINE_ONLY === "true";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-4-8";
@@ -637,6 +638,7 @@ async function askOllama(prompt, options = {}, timeoutMs = 45000) {
         model: OLLAMA_MODEL,
         prompt,
         stream: false,
+        keep_alive: OLLAMA_KEEP_ALIVE,
         options: {
           temperature: 0.35,
           num_ctx: 4096,
@@ -654,6 +656,21 @@ async function askOllama(prompt, options = {}, timeoutMs = 45000) {
 
   const data = await response.json();
   return String(data.response || "").trim();
+}
+
+async function warmOllama() {
+  if (OFFLINE_ONLY || LLM_PROVIDER !== "ollama") return;
+  try {
+    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: OLLAMA_MODEL, prompt: "", stream: false, keep_alive: OLLAMA_KEEP_ALIVE })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    console.log(`Ollama model ${OLLAMA_MODEL} warmed and kept loaded for ${OLLAMA_KEEP_ALIVE}.`);
+  } catch (error) {
+    console.warn(`Ollama warm-up skipped: ${error.message}`);
+  }
 }
 
 async function askClaude(prompt, options = {}) {
@@ -1053,13 +1070,15 @@ function questionPrompt(input) {
   const level = input.level || "mid-senior";
   const topic = input.topic || "Kubernetes, GCP, MLOps, CI/CD, Terraform, SRE";
   const interviewNumber = input.interviewNumber || 1;
-  const cvText = trimContext(input.cvText);
-  const jdText = combinedJobContext(input.jdText);
-  const historyEntries = Array.isArray(input.history) ? input.history.slice(-6) : [];
-  const history = historyEntries.join("\n");
+  const cvText = trimContext(input.cvText, 1600);
+  const isTechnologyRisk = /technology risk|it risk|audit|compliance|governance/i.test(`${role} ${topic} ${input.jdText || ""}`);
+  const providedJd = trimContext(input.jdText, 1600);
+  const jdText = providedJd || (isTechnologyRisk ? trimContext(TECHNOLOGY_RISK_LEAD_BACKGROUND, 1600) : "No JD provided.");
+  const historyEntries = Array.isArray(input.history) ? input.history.slice(-3) : [];
+  const history = trimContext(historyEntries.join("\n"), 1800);
   const lastEntry = historyEntries[historyEntries.length - 1] || "";
   const lastAnswerMatch = lastEntry.match(/Answer:\s*([\s\S]+)/);
-  const lastAnswer = lastAnswerMatch ? lastAnswerMatch[1].trim() : "";
+  const lastAnswer = lastAnswerMatch ? trimContext(lastAnswerMatch[1], 700) : "";
 
   return `You are running a mock technical interview.
 
@@ -1079,34 +1098,10 @@ Recent interview history:
 ${history || "None yet."}
 
 ${lastAnswer
-    ? `The candidate's most recent answer was:\n${lastAnswer}\n\nAct like a real interviewer reacting to that specific answer: reference a concrete detail, tool, number, or claim the candidate just made, and ask ONE adaptive follow-up question that digs deeper into it or pressure-tests it - do not jump to an unrelated rotation topic yet. Only move to the next rotation topic below if this specific answer was already thin, fully covered in a prior follow-up, or you are deliberately starting a new section of the interview.`
-    : "There is no prior answer yet, so ask an opening or topic-starting question from the rotation below."}
+    ? `Most recent answer:\n${lastAnswer}\nAsk an adaptive follow-up that references one concrete detail from this answer.`
+    : "Ask an opening question aligned to the role and focus areas."}
 
-Priority skill rotation:
-1. GKE expert operations and troubleshooting
-2. Terraform expert modules, state, Terraform Enterprise, policy as code
-3. Python automation for cloud/platform work
-3a. Go programming for platform CLIs, APIs, Kubernetes controllers/operators, concurrency, and production tooling
-3b. FastAPI backend service design, Pydantic validation, async APIs, testing, observability, and deployment
-4. SRE concepts: SLI, SLO, error budgets, incidents, RCA
-5. Observability: Prometheus, Grafana, OpenTelemetry, Cloud Monitoring, logs
-6. GitOps and CI/CD: ArgoCD, Cloud Build, Jenkins, GitHub Actions
-7. GCP security: IAM, Workload Identity, Cloud Armor, secrets, supply chain
-8. Platform engineering: self-service, golden paths, DevEx, IDP
-9. Vertex AI, MLOps, model serving on Kubernetes, GPU workloads
-10. Networking fundamentals for GCP and Kubernetes
-11. GCP landing zones, org policy, Shared VPC, governance, and guardrails
-12. FinOps, cost optimization, budget controls, and cost-aware architecture
-13. DR, backup/restore, RTO/RPO, failover, and production readiness
-14. Incident leadership, stakeholder communication, runbooks, and postmortems
-15. Linux, TLS, DNS, HTTP, and systems performance fundamentals
-16. Technology risk framework design, risk registers, heatmaps, dashboards, and reporting
-17. Control design and validation: preventive, detective, corrective controls
-18. Governance, audit, compliance, ISO 27001, NIST, COBIT, FAIR, and remediation planning
-19. BRD/PRD, architecture, SDLC, cloud, DevOps, and change risk assessment
-20. Behavioral leadership: stakeholder influence, executive communication, risk culture, and decision-making
-
-Ask exactly one interview question. Make it realistic, scenario-based, suitable for spoken practice, and strongly aligned to the JD while testing the candidate's CV claims. Rotate through the priority skills instead of repeating the same topic. Mix technical technology-risk questions with behavioral stakeholder-leadership questions over the interview. For Google/product-company style, prefer system design, tradeoff, debugging, incident, control, governance, and production ownership questions. Do not include the answer.`;
+Use the recent history to avoid repetition. Prefer realistic scenarios involving design, tradeoffs, debugging, incidents, security, reliability, or production ownership. Ask exactly one concise spoken-interview question. Do not add an answer, explanation, assessment note, preamble, or question number.`;
 }
 
 function hintPrompt(input) {
@@ -1455,7 +1450,10 @@ async function handleRequest(req, res) {
         return;
       }
       try {
-        const question = cleanGeneratedQuestion(await askLLM(questionPrompt(input)));
+        const question = cleanGeneratedQuestion(await askLLM(questionPrompt(input), {
+          temperature: 0.3,
+          num_predict: 100
+        }, 18000));
         sendJson(res, 200, { question });
       } catch {
         sendJson(res, 200, {
@@ -1562,6 +1560,7 @@ if (require.main === module) {
       console.log(`Using Claude model ${CLAUDE_MODEL}`);
     } else {
       console.log(`Using Ollama model ${OLLAMA_MODEL} at ${OLLAMA_URL}`);
+      warmOllama();
     }
   });
 }
