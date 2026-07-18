@@ -1394,6 +1394,20 @@ textarea:focus {
   cursor: pointer;
 }
 
+.setup-section-heading,
+.setup-feature-heading {
+  margin: 0;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.setup-feature-heading { padding: 11px; }
+.setup-always-open { padding-bottom: 12px; }
+
 .setup-collapse[open] > summary {
   border-bottom: 1px solid var(--line);
 }

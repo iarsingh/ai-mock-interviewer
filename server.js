@@ -1185,7 +1185,10 @@ function serveStatic(req, res) {
     }
 
     res.writeHead(200, {
-      "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream"
+      "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream",
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0"
     });
     res.end(req.method === "HEAD" ? undefined : data);
   });
