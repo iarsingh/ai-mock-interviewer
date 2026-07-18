@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("aimi-theme");
+          var theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Report - AI Mock Interviewer</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell admin-shell">
+      <section class="topbar">
+        <div class="brand-block">
+          <p class="eyebrow">Admin</p>
+          <div class="brand-title">
+            <img class="brand-icon" src="/favicon.svg" alt="" aria-hidden="true">
+            <h1>Interview Report</h1>
+          </div>
+          <p class="subtitle">Track answered questions, remaining practice, and completed feedback reports.</p>
+        </div>
+        <div class="top-actions">
+          <div class="nav-group quick-actions">
+            <a class="ghost link-button" href="/">Home</a>
+            <a class="ghost link-button" href="/contact.html">Contact</a>
+            <button id="refreshReport" class="ghost" type="button">Refresh</button>
+            <a class="ghost link-button" href="/session.html">Back to interview</a>
+            <a class="ghost link-button small linkedin-button" href="https://www.linkedin.com/in/iamarsingh/" target="_blank" rel="noopener noreferrer" aria-label="Connect with iarsingh on LinkedIn">LinkedIn</a>
+            <a class="ghost link-button small instagram-button" href="https://www.instagram.com/iarsingh/" target="_blank" rel="noopener noreferrer" aria-label="Follow iarsingh on Instagram">Instagram</a>
+            <a class="ghost link-button small topmate-button" href="https://topmate.io/iamarsingh" target="_blank" rel="noopener noreferrer" aria-label="Book a one-to-one mentorship session on Topmate">&#128197; Book 1:1</a>
+            <a class="ghost link-button small coffee-button" href="https://www.buymeacoffee.com/iarsingh" target="_blank" rel="noopener noreferrer" title="Buy me a coffee">&#9749; Coffee</a>
+            <button class="theme-toggle" type="button" data-action="toggle-theme" aria-pressed="false" aria-label="Toggle dark mode" title="Toggle dark mode">
+              <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;&#65039;</span>
+              <span class="theme-icon theme-icon-dark" aria-hidden="true">&#127769;</span>
+            </button>
+          </div>
+
+          <div class="nav-group nav-auth" data-auth-state="in" hidden>
+            <div class="account-chip">
+              <span class="avatar" data-auth="initial">?</span>
+              <span data-auth="name">Account</span>
+              <span class="role-badge" data-auth="role" hidden></span>
+            </div>
+            <button class="ghost link-button small" type="button" data-action="sign-out">Sign out</button>
+          </div>
+          <a class="ghost link-button small nav-auth" href="/signin.html" data-auth-state="out" hidden>Sign in</a>
+        </div>
+      </section>
+
+      <section class="admin-grid">
+        <article class="panel admin-card">
+          <p class="eyebrow">Current Session</p>
+          <h2 id="currentInterviewTitle">Interview</h2>
+          <div class="admin-metrics">
+            <div>
+              <span id="answeredCount">0</span>
+              <small>Answered</small>
+            </div>
+            <div>
+              <span id="remainingCount">0</span>
+              <small>Left</small>
+            </div>
+            <div>
+              <span id="totalCount">0</span>
+              <small>Total</small>
+            </div>
+            <div>
+              <span id="completionRate">0%</span>
+              <small>Complete</small>
+            </div>
+          </div>
+          <div class="progress-track admin-progress" aria-hidden="true">
+            <span id="adminProgress"></span>
+          </div>
+          <dl class="admin-facts">
+            <div>
+              <dt>Practice</dt>
+              <dd id="practiceLabel">All questions</dd>
+            </div>
+            <div>
+              <dt>Role</dt>
+              <dd id="roleLabel">Not set</dd>
+            </div>
+            <div>
+              <dt>Questions generated</dt>
+              <dd id="generatedCount">0</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel admin-card">
+          <p class="eyebrow">All Interviews</p>
+          <div class="admin-metrics compact">
+            <div>
+              <span id="allAnsweredCount">0</span>
+              <small>Total answered</small>
+            </div>
+            <div>
+              <span id="interviewCount">0</span>
+              <small>Sessions</small>
+            </div>
+            <div>
+              <span id="reportCount">0</span>
+              <small>Reports</small>
+            </div>
+          </div>
+          <div id="topicBreakdown" class="bar-chart"></div>
+        </article>
+
+        <article class="panel admin-card admin-wide">
+          <div class="admin-section-head">
+            <div>
+              <p class="eyebrow">Technology Dashboard</p>
+              <h2>Answered Questions by Category</h2>
+            </div>
+          </div>
+          <div id="techDashboard" class="tech-dashboard"></div>
+        </article>
+
+        <article class="panel admin-card admin-wide">
+          <div class="admin-section-head">
+            <div>
+              <p class="eyebrow">Detailed Analysis</p>
+              <h2>Progress Over Time</h2>
+            </div>
+          </div>
+          <div id="progressChart" class="progress-chart-wrap"></div>
+        </article>
+
+        <article class="panel admin-card admin-wide">
+          <div class="admin-section-head">
+            <div>
+              <p class="eyebrow">Answered Questions</p>
+              <h2>Current Interview</h2>
+            </div>
+          </div>
+          <div id="answeredQuestions" class="admin-list"></div>
+        </article>
+
+        <article class="panel admin-card admin-wide">
+          <div class="admin-section-head">
+            <div>
+              <p class="eyebrow">Reports</p>
+              <h2>Final Feedback History</h2>
+            </div>
+          </div>
+          <div id="reportHistory" class="admin-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <div class="replay-backdrop" id="replayBackdrop">
+      <div class="replay-modal" role="dialog" aria-modal="true" aria-label="Interview replay">
+        <div class="replay-head">
+          <div>
+            <p class="eyebrow">Interview Replay</p>
+            <strong id="replayTitle">Interview</strong>
+          </div>
+          <button id="replayClose" class="ghost small" type="button">Close</button>
+        </div>
+        <div class="replay-body">
+          <div class="replay-stats">
+            <span id="replayCounter">Question 1</span>
+            <button id="replaySpeak" class="ghost small" type="button">Read question</button>
+          </div>
+          <h3 id="replayQuestion">Question text</h3>
+          <p class="eyebrow">Candidate answer</p>
+          <div id="replayAnswer" class="replay-answer"></div>
+        </div>
+        <div class="replay-actions">
+          <button id="replayPrev" class="ghost" type="button">&larr; Previous</button>
+          <span id="replayProgress"></span>
+          <button id="replayNext" class="ghost" type="button">Next &rarr;</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/admin.js"></script>
+    <script src="/theme.js"></script>
+    <script src="/auth-client.js"></script>
+  </body>
+</html>

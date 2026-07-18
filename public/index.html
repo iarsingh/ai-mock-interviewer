@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("aimi-theme");
+          var theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Mock Interviewer</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="landing-body">
+    <main class="landing">
+      <nav class="landing-nav">
+        <div class="brand-title">
+          <img class="brand-icon" src="/favicon.svg" alt="" aria-hidden="true">
+          <strong>AI Mock Interviewer</strong>
+        </div>
+        <div class="landing-nav-actions">
+          <div class="nav-group">
+            <a class="ghost link-button" href="/contact.html">Contact</a>
+            <a class="ghost link-button" href="https://github.com/iarsingh" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a class="ghost link-button linkedin-button" href="https://www.linkedin.com/in/iamarsingh/" target="_blank" rel="noopener noreferrer" aria-label="Connect with iarsingh on LinkedIn">LinkedIn</a>
+            <a class="ghost link-button instagram-button" href="https://www.instagram.com/iarsingh/" target="_blank" rel="noopener noreferrer" aria-label="Follow iarsingh on Instagram">Instagram</a>
+            <a class="ghost link-button topmate-button" href="https://topmate.io/iamarsingh" target="_blank" rel="noopener noreferrer" aria-label="Book a one-to-one mentorship session on Topmate">&#128197; Book 1:1</a>
+            <a class="ghost link-button coffee-button" href="https://www.buymeacoffee.com/iarsingh" target="_blank" rel="noopener noreferrer">&#9749; Buy me a coffee</a>
+            <a class="ghost link-button" href="/admin.html" data-auth-admin-only hidden>Admin report</a>
+            <button class="theme-toggle" type="button" data-action="toggle-theme" aria-pressed="false" aria-label="Toggle dark mode" title="Toggle dark mode">
+              <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;&#65039;</span>
+              <span class="theme-icon theme-icon-dark" aria-hidden="true">&#127769;</span>
+            </button>
+          </div>
+
+          <div class="nav-group nav-auth" data-auth-state="out" hidden>
+            <a class="ghost link-button" href="/signin.html">Sign in</a>
+            <a class="primary link-button" href="/signup.html">Sign up</a>
+          </div>
+
+          <div class="nav-group nav-auth" data-auth-state="in" hidden>
+            <div class="account-chip">
+              <span class="avatar" data-auth="initial">?</span>
+              <span data-auth="name">Account</span>
+            </div>
+            <a class="ghost link-button" href="/dashboard.html">Open dashboard</a>
+            <button class="ghost link-button" type="button" data-action="sign-out">Sign out</button>
+          </div>
+        </div>
+      </nav>
+
+      <section class="hero">
+        <p class="eyebrow">Open-source interview lab · Runs on your machine</p>
+        <h1>Practice technical interviews out loud, before the real one.</h1>
+        <p class="hero-subtitle">
+          Voice-led mock interviews for DevOps, SRE, Cloud, Platform, and MLOps roles. Speak your answer,
+          get a live transcript, and receive structured feedback scored against a real interview bar -
+          all powered by a local LLM, no data leaves your machine unless you choose cloud mode.
+        </p>
+        <div class="hero-actions">
+          <a class="primary wide link-button" href="/dashboard.html">Choose interview track</a>
+          <a class="ghost wide link-button" href="#how-it-works">See how it works</a>
+          <a class="ghost wide link-button topmate-button" href="https://topmate.io/iamarsingh" target="_blank" rel="noopener noreferrer">Book personal mentorship &#8599;</a>
+        </div>
+      </section>
+
+      <section class="feature-grid">
+        <article class="feature-card">
+          <span class="feature-icon" aria-hidden="true">&#127908;</span>
+          <h3>Voice-led practice</h3>
+          <p>Speak naturally. Real-time speech-to-text captures your answer while a live audio visualizer keeps the session feeling like an actual call.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon" aria-hidden="true">&#128196;</span>
+          <h3>CV and JD aware</h3>
+          <p>Import your resume and a target job description. Questions are generated against your actual background and the role's real requirements.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon" aria-hidden="true">&#9889;</span>
+          <h3>Instant, structured feedback</h3>
+          <p>Every answer is scored with what went well, what to improve, and a stronger model answer - plus a full end-of-session report.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon" aria-hidden="true">&#128274;</span>
+          <h3>Private by default</h3>
+          <p>Runs fully offline against a local Ollama model. Your CV, answers, and transcripts stay on your machine unless you opt into cloud mode.</p>
+        </article>
+      </section>
+
+      <section class="steps" id="how-it-works">
+        <p class="eyebrow">How it works</p>
+        <div class="steps-grid">
+          <div class="step">
+            <span class="step-number">1</span>
+            <h4>Add your CV and target JD</h4>
+            <p>Paste or upload your resume and a job description so questions match your real background and the role.</p>
+          </div>
+          <div class="step">
+            <span class="step-number">2</span>
+            <h4>Practice out loud</h4>
+            <p>Answer by voice or keyboard. Auto-advance keeps a live interview pace, or go question by question.</p>
+          </div>
+          <div class="step">
+            <span class="step-number">3</span>
+            <h4>Review and improve</h4>
+            <p>Get scored feedback per answer and a final report, saved to your progress history across sessions.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="landing-footer">
+        <p>Open source · runs on your machine.</p>
+        <div class="nav-group">
+          <a class="ghost link-button linkedin-button" href="https://www.linkedin.com/in/iamarsingh/" target="_blank" rel="noopener noreferrer">Connect on LinkedIn</a>
+          <a class="ghost link-button instagram-button" href="https://www.instagram.com/iarsingh/" target="_blank" rel="noopener noreferrer">Follow on Instagram</a>
+          <a class="ghost link-button topmate-button" href="https://topmate.io/iamarsingh" target="_blank" rel="noopener noreferrer">Book 1:1 on Topmate</a>
+          <a class="ghost link-button" href="/dashboard.html">Start your first session</a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="/theme.js"></script>
+    <script src="/auth-client.js"></script>
+    <script>
+      const revealTargets = document.querySelectorAll(".feature-card, .step");
+      if ("IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("in-view");
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.15 });
+        revealTargets.forEach((el) => observer.observe(el));
+      } else {
+        revealTargets.forEach((el) => el.classList.add("in-view"));
+      }
+    </script>
+  </body>
+</html>
