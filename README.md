@@ -14,8 +14,9 @@ locally, and works fully offline using a built-in question bank of 2,000+ questi
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [Sign In And Accounts](#sign-in-and-accounts)
+- [Contact Messages](#contact-messages)
 - [Run With Local Ollama](#run-with-local-ollama)
-- [Deploy Free On Render Without An AI Key](#deploy-free-on-render-without-an-ai-key)
+- [Deploy On Vercel](#deploy-on-vercel)
 - [How To Use](#how-to-use)
 - [Audio Notes](#audio-notes)
 - [Offline Mode](#offline-mode)
@@ -175,11 +176,29 @@ Use another local model:
 OLLAMA_MODEL=mistral npm start
 ```
 
-## Deploy Free On Render Without An AI Key
+## Deploy On Vercel
 
-This repo includes a root-level `render.yaml` blueprint for deploying the app on Render's free web service tier in offline mode.
+The repo includes `vercel.json` and `api/[...path].js`, which wraps `server.js` as a single Vercel serverless
+function so the same Node server that runs locally also runs in production.
 
-Offline hosted mode:
+`vercel.json` sets:
+
+```json
+{
+  "version": 2,
+  "env": {
+    "OFFLINE_ONLY": "1",
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "api/[...path].js": {
+      "maxDuration": 10
+    }
+  }
+}
+```
+
+Offline hosted mode (the default via `OFFLINE_ONLY=1`):
 
 - Does not require `ANTHROPIC_API_KEY`, OpenAI keys, Gemini keys, or Ollama.
 - Uses the built-in question bank, fixed mock interview sets, and template feedback.
@@ -189,28 +208,12 @@ Offline hosted mode:
 Deploy steps:
 
 1. Push this repository to GitHub.
-2. Open Render and create a new Blueprint from the GitHub repo.
-3. Render will read `render.yaml` from the repository root.
-4. Confirm the service settings and deploy.
-
-Manual Render settings, if you do not use the blueprint:
-
-```text
-Runtime: Node
-Build command: cd ai-mock-interviewer && npm ci
-Start command: cd ai-mock-interviewer && npm run start:offline
-Health check path: /api/health
-```
-
-Environment variables:
-
-```text
-NODE_ENV=production
-OFFLINE_ONLY=1
-HOST=0.0.0.0
-```
-
-Render provides `PORT` automatically.
+2. Import the repo into Vercel.
+3. Vercel reads `vercel.json` automatically; no separate build command is needed.
+4. Optionally add `DATABASE_URL`, `DATABASE_SSL`, and `SESSION_SECRET` in the Vercel project's environment
+   variables for persistent accounts, or set `OFFLINE_ONLY=0` and `ANTHROPIC_API_KEY` to enable Claude-backed
+   feedback instead of offline templates.
+5. Deploy.
 
 ## How To Use
 
