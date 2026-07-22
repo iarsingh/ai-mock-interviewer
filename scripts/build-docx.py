@@ -21,13 +21,20 @@ TOPIC_ORDER = [
     "Kubernetes Fundamentals (101–200)",
     "Docker & Containers (201–260)",
     "Docker",
+    "Docker & Docker Compose (Build Design)",
     "Terraform & IaC (361–450)",
     "CI/CD & GitOps (261–360)",
+    "Production DevOps Scenario Round (CI/CD, Kubernetes, Terraform, MLOps)",
     "Observability & Monitoring (451–540)",
     "GCP & Cloud Engineering (541–650)",
+    "Cloud Migration Strategy",
     "Linux, Networking & Security (651–760)",
+    "GCP Networking - Advanced Concepts",
+    "GCP Networking - Troubleshooting Scenarios",
     "System Design & Architecture (761–860)",
     "SRE, Behavioural & Scenario Questions (861–1000)",
+    "Behavioral - Reliability & Observability",
+    "Behavioral - Screening Rounds",
     "Advanced Kubernetes, GCP, Terraform, Python and Scenario-Based Questions (1001-1080)",
     "GCP Machine Learning and Vertex AI Mock Interview Questions (1081-1120)",
     "JD-Specific Senior Cloud Engineering Mock Interview Questions (1121-1180)",
@@ -39,6 +46,7 @@ TOPIC_ORDER = [
     "FastAPI",
     "Ansible",
     "LLMOps / GenAI Production",
+    "GenAI & LLM Engineering",
     "MLOps Fundamentals (1–100)",
     "Technology Risk - Technical",
     "Technology Risk - Behavioral",
@@ -98,7 +106,7 @@ doc.add_paragraph()
 desc = doc.add_paragraph()
 desc.add_run(
     "This document combines every question and answer from the ai-mock-interviewer question bank: "
-    "the 77 fixed practice mock interview rounds, the full topic-organized technical question bank "
+    "the 80 fixed practice mock interview rounds, the full topic-organized technical question bank "
     "(GCP, Kubernetes/GKE, Terraform, Docker, CI/CD, Observability, Security, Networking, Linux, System Design, "
     "SRE/behavioral, Python, Go, FastAPI, Ansible, Scripting, Coding Exercises, MLOps, and LLMOps/GenAI), "
     "and the Technology Risk Lead track."
