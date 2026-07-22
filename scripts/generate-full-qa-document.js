@@ -98,13 +98,37 @@ function loadAppBanks() {
   return entries;
 }
 
+// Sets that read better grouped by topic (Part 2) than as another numbered
+// practice round (Part 1) - map their title to the topic section name to file under.
+const SECTION_TOPIC_OVERRIDES = {
+  "Mock Interview 81 - Docker and Docker Compose Build Design": "Docker & Docker Compose (Build Design)",
+  "Mock Interview 82 - Production DevOps Scenario Round (CI/CD, Kubernetes, Terraform, MLOps)": "Production DevOps Scenario Round (CI/CD, Kubernetes, Terraform, MLOps)",
+  "Mock Interview 83 - Production Reliability and Observability Behavioral Round": "Behavioral - Reliability & Observability",
+  "Mock Interview 84 - Fugmo Lead GCP DevOps Engineer Screening": "Behavioral - Screening Rounds",
+  "Mock Interview 85 - GenAI and LLM Engineering Round": "GenAI & LLM Engineering",
+  "Mock Interview 86 - Advanced GCP Networking Round": "GCP Networking - Advanced Concepts",
+  "Mock Interview 87 - GCP Networking Scenario Round": "GCP Networking - Troubleshooting Scenarios",
+  "Mock Interview 88 - Cloud Migration Strategy Round": "Cloud Migration Strategy"
+};
+
 function loadMockSets() {
   const sets = JSON.parse(fs.readFileSync(path.join(ROOT, "public", "mock-interview-sets.json"), "utf8"));
   const entries = [];
   for (const set of sets) {
+    const section = SECTION_TOPIC_OVERRIDES[set.title] || set.title;
     for (const item of set.questions) {
-      entries.push({ source: "Fixed Mock Interview Sets", section: set.title, category: item.category, question: item.question });
+      entries.push({ source: "Fixed Mock Interview Sets", section, category: item.category, question: item.question });
     }
+  }
+  return entries;
+}
+
+function loadCodingAnswerBank() {
+  const p = path.join(__dirname, "answer-bank", "08-coding.json");
+  const obj = JSON.parse(fs.readFileSync(p, "utf8"));
+  const entries = [];
+  for (const [question, answer] of Object.entries(obj)) {
+    entries.push({ source: "Coding Answer Bank", section: "Coding Exercises", category: null, question, answer });
   }
   return entries;
 }
@@ -153,8 +177,9 @@ for (const [key, answer] of handWritten) {
 // (the primary practice pool), then large bank / tech-risk txt as supplementary depth.
 const mockSets = loadMockSets();
 const appBanks = loadAppBanks();
+const codingBank = loadCodingAnswerBank();
 
-const allSources = [...mockSets, ...appBanks, ...techQa, ...largeBank];
+const allSources = [...mockSets, ...codingBank, ...appBanks, ...techQa, ...largeBank];
 
 const seen = new Set();
 const finalEntries = [];
