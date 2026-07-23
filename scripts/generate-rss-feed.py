@@ -21,6 +21,7 @@ SHOW_DESC = (
 )
 SHOW_LINK = f"https://github.com/{REPO}"
 AUTHOR = "Akhilesh Ranjan Singh"
+OWNER_EMAIL = "akhileshranjan.ks@gmail.com"
 
 SERIES_ORDER = [
     "01-gcp-networking", "02-devops-cicd", "03-kubernetes-gke", "04-behavioral-screening",
@@ -106,6 +107,11 @@ def main():
     <language>en-us</language>
     <lastBuildDate>{last_build}</lastBuildDate>
     <itunes:author>{escape(AUTHOR)}</itunes:author>
+    <itunes:owner>
+      <itunes:name>{escape(AUTHOR)}</itunes:name>
+      <itunes:email>{escape(OWNER_EMAIL)}</itunes:email>
+    </itunes:owner>
+    <managingEditor>{escape(OWNER_EMAIL)} ({escape(AUTHOR)})</managingEditor>
     <itunes:explicit>false</itunes:explicit>
     <itunes:image href="{escape(COVER_URL)}" />
     <image>

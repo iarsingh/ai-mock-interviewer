@@ -490,32 +490,56 @@
     </main>
 
     <div id="mediaPermissionBackdrop" class="media-permission-backdrop" hidden>
-      <section class="media-permission-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaPermissionTitle" aria-describedby="mediaPermissionDescription">
-        <div class="media-permission-brand"><img src="/favicon.svg" alt=""><span>Device check</span></div>
-        <p class="eyebrow">Before your interview</p>
-        <h2 id="mediaPermissionTitle">Set up camera, microphone &amp; headphones</h2>
-        <p id="mediaPermissionDescription">Allow access so the interviewer can hear you, show your camera when enabled, and play questions through your preferred audio output.</p>
-        <div class="media-permission-list">
-          <div><span class="device-permission-icon camera-icon" aria-hidden="true">CAM</span><span><strong>Camera</strong><small>Used only when you enable video</small></span><b id="cameraPermissionState">Not checked</b></div>
-          <div><span class="device-permission-icon mic-icon" aria-hidden="true">MIC</span><span><strong>Microphone</strong><small>Transcribes your spoken answers</small></span><b id="micPermissionState">Not checked</b></div>
-          <div><span class="device-permission-icon audio-icon" aria-hidden="true">HP</span><span><strong>Headphones / speaker</strong><small>Plays interviewer questions privately</small></span><b id="audioPermissionState">Not checked</b></div>
+      <section class="device-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="mediaPermissionTitle" aria-describedby="mediaPermissionDescription">
+        <div class="device-setup-header">
+          <div class="media-permission-brand"><img src="/favicon.svg" alt=""><span id="mediaPermissionTitle">AI interview device setup</span></div>
         </div>
-        <label class="permission-accent-field" for="permissionAccent">
-          <span><strong>Your speaking accent</strong><small>Improves speech-to-text recognition</small></span>
-          <select id="permissionAccent">
-            <option value="en-IN">English — India</option>
-            <option value="en-US">English — United States</option>
-            <option value="en-GB">English — United Kingdom</option>
-            <option value="en-AU">English — Australia</option>
-            <option value="en-CA">English — Canada</option>
-          </select>
-        </label>
-        <p id="mediaPermissionMessage" class="media-permission-message">Your browser will show its native camera and microphone permission prompt.</p>
-        <div class="media-permission-actions">
-          <button id="allowMediaPermissions" class="primary" type="button">Allow &amp; check devices</button>
-          <button id="skipMediaPermissions" class="ghost" type="button">Not now</button>
+        <p id="mediaPermissionDescription" class="sr-only">Choose your microphone, speaker, and camera before starting the interview.</p>
+        <div class="device-setup-grid">
+          <div class="device-setup-controls">
+            <label class="device-select-field" for="micDeviceSelect">
+              <span>Microphone</span>
+              <select id="micDeviceSelect"><option value="">Default microphone</option></select>
+            </label>
+            <label class="device-select-field" for="speakerDeviceSelect">
+              <span>Speaker</span>
+              <select id="speakerDeviceSelect"><option value="">Default speaker</option></select>
+            </label>
+            <div class="device-select-field device-video-toggle-row">
+              <span>Video</span>
+              <label class="video-toggle">
+                <input type="checkbox" id="videoDeviceToggle" checked>
+                <span class="video-toggle-track" aria-hidden="true"></span>
+                <span id="videoToggleLabel">On</span>
+              </label>
+            </div>
+            <label class="device-select-field" for="cameraDeviceSelect">
+              <span>Camera</span>
+              <select id="cameraDeviceSelect"><option value="">Default camera</option></select>
+            </label>
+            <label class="permission-accent-field" for="permissionAccent">
+              <span><strong>Your speaking accent</strong><small>Improves speech-to-text recognition</small></span>
+              <select id="permissionAccent">
+                <option value="en-IN">English — India</option>
+                <option value="en-US">English — United States</option>
+                <option value="en-GB">English — United Kingdom</option>
+                <option value="en-AU">English — Australia</option>
+                <option value="en-CA">English — Canada</option>
+              </select>
+            </label>
+            <p id="mediaPermissionMessage" class="media-permission-message">Your browser will show its native camera and microphone permission prompt.</p>
+          </div>
+          <div class="device-setup-preview">
+            <div class="device-preview-frame">
+              <video id="devicePreviewVideo" autoplay playsinline muted></video>
+              <div id="devicePreviewPlaceholder" class="device-preview-placeholder">Camera preview will appear here</div>
+              <span id="devicePreviewBadge" class="device-preview-badge" hidden>Live preview</span>
+            </div>
+            <button id="allowMediaPermissions" class="primary device-start-btn" type="button">Start interview</button>
+            <button id="skipMediaPermissions" class="ghost" type="button">Not now</button>
+          </div>
         </div>
-        <small class="media-privacy-note">Device streams are stopped after this check and are not recorded by the permission screen.</small>
+        <small class="media-privacy-note">Speech recognition uses your system's default microphone regardless of the selection above — browsers don't allow websites to redirect it. The dropdowns control your camera preview and playback device preference. Device streams are only active during setup and your session; nothing here is uploaded.</small>
       </section>
     </div>
 

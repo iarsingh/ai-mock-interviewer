@@ -85,11 +85,16 @@ const els = {
   mediaPermissionBackdrop: document.querySelector("#mediaPermissionBackdrop"),
   allowMediaPermissions: document.querySelector("#allowMediaPermissions"),
   skipMediaPermissions: document.querySelector("#skipMediaPermissions"),
-  cameraPermissionState: document.querySelector("#cameraPermissionState"),
-  micPermissionState: document.querySelector("#micPermissionState"),
-  audioPermissionState: document.querySelector("#audioPermissionState"),
   mediaPermissionMessage: document.querySelector("#mediaPermissionMessage"),
-  permissionAccent: document.querySelector("#permissionAccent")
+  permissionAccent: document.querySelector("#permissionAccent"),
+  micDeviceSelect: document.querySelector("#micDeviceSelect"),
+  speakerDeviceSelect: document.querySelector("#speakerDeviceSelect"),
+  cameraDeviceSelect: document.querySelector("#cameraDeviceSelect"),
+  videoDeviceToggle: document.querySelector("#videoDeviceToggle"),
+  videoToggleLabel: document.querySelector("#videoToggleLabel"),
+  devicePreviewVideo: document.querySelector("#devicePreviewVideo"),
+  devicePreviewPlaceholder: document.querySelector("#devicePreviewPlaceholder"),
+  devicePreviewBadge: document.querySelector("#devicePreviewBadge")
 };
 
 const STORAGE_KEY = "aiMockInterviewerState";
@@ -1585,64 +1590,168 @@ let micVisualizerContext = null;
 let micVisualizerAnalyser = null;
 let micVisualizerRaf = null;
 
-function setPermissionState(element, state, label) {
-  if (!element) return;
-  element.textContent = label;
-  element.dataset.state = state;
+const DEVICE_SELECTION_KEY = "aimiDeviceSelections";
+
+let deviceSetupStream = null;
+let selectedDeviceIds = { mic: "", speaker: "", camera: "" };
+
+function loadSavedDeviceSelections() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DEVICE_SELECTION_KEY) || "{}");
+    selectedDeviceIds = { mic: saved.mic || "", speaker: saved.speaker || "", camera: saved.camera || "" };
+  } catch {
+    selectedDeviceIds = { mic: "", speaker: "", camera: "" };
+  }
+}
+
+function saveDeviceSelections() {
+  localStorage.setItem(DEVICE_SELECTION_KEY, JSON.stringify(selectedDeviceIds));
+}
+
+function populateDeviceSelect(select, devices, kind, fallbackLabel) {
+  if (!select) return;
+  const matches = devices.filter((device) => device.kind === kind);
+  const previousValue = select.value;
+  select.innerHTML = "";
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = fallbackLabel;
+  select.appendChild(defaultOption);
+  matches.forEach((device, index) => {
+    const option = document.createElement("option");
+    option.value = device.deviceId;
+    option.textContent = device.label || `${fallbackLabel.replace("Default ", "")} ${index + 1}`;
+    select.appendChild(option);
+  });
+  const remembered = kind === "audioinput" ? selectedDeviceIds.mic : kind === "audiooutput" ? selectedDeviceIds.speaker : selectedDeviceIds.camera;
+  if (remembered && matches.some((device) => device.deviceId === remembered)) {
+    select.value = remembered;
+  } else if (previousValue && matches.some((device) => device.deviceId === previousValue)) {
+    select.value = previousValue;
+  }
+  select.disabled = matches.length === 0;
+}
+
+async function refreshDeviceLists() {
+  if (!navigator.mediaDevices?.enumerateDevices) return;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    populateDeviceSelect(els.micDeviceSelect, devices, "audioinput", "Default microphone");
+    populateDeviceSelect(els.speakerDeviceSelect, devices, "audiooutput", "Default speaker");
+    populateDeviceSelect(els.cameraDeviceSelect, devices, "videoinput", "Default camera");
+  } catch {
+    /* enumeration failed - leave defaults in place */
+  }
+}
+
+function stopDeviceSetupStream() {
+  if (deviceSetupStream) {
+    deviceSetupStream.getTracks().forEach((track) => track.stop());
+    deviceSetupStream = null;
+  }
+}
+
+async function startDevicePreview() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    els.mediaPermissionMessage.textContent = "Camera and microphone access is not supported in this browser.";
+    return;
+  }
+  stopDeviceSetupStream();
+  const videoOn = !!els.videoDeviceToggle?.checked;
+  const audioConstraint = selectedDeviceIds.mic ? { deviceId: { exact: selectedDeviceIds.mic } } : true;
+  const videoConstraint = videoOn
+    ? (selectedDeviceIds.camera ? { deviceId: { exact: selectedDeviceIds.camera } } : true)
+    : false;
+
+  try {
+    els.mediaPermissionMessage.textContent = "Approve the camera and microphone request in your browser.";
+    deviceSetupStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraint, video: videoConstraint });
+
+    if (videoOn && deviceSetupStream.getVideoTracks().length) {
+      els.devicePreviewVideo.srcObject = deviceSetupStream;
+      els.devicePreviewVideo.hidden = false;
+      if (els.devicePreviewPlaceholder) els.devicePreviewPlaceholder.hidden = true;
+      if (els.devicePreviewBadge) els.devicePreviewBadge.hidden = false;
+    } else {
+      els.devicePreviewVideo.srcObject = null;
+      els.devicePreviewVideo.hidden = true;
+      if (els.devicePreviewPlaceholder) {
+        els.devicePreviewPlaceholder.hidden = false;
+        els.devicePreviewPlaceholder.textContent = videoOn ? "No camera found" : "Video is off";
+      }
+      if (els.devicePreviewBadge) els.devicePreviewBadge.hidden = true;
+    }
+
+    // Labels are only populated by the browser after permission is granted, so refresh once more.
+    await refreshDeviceLists();
+    localStorage.setItem(MEDIA_PERMISSION_KEY, "true");
+    els.mediaPermissionMessage.textContent = "Devices are ready. Choose your camera and microphone, then start when you're ready.";
+  } catch (error) {
+    const denied = error?.name === "NotAllowedError" || error?.name === "SecurityError";
+    if (els.devicePreviewPlaceholder) {
+      els.devicePreviewPlaceholder.hidden = false;
+      els.devicePreviewPlaceholder.textContent = denied ? "Camera access denied" : "Camera unavailable";
+    }
+    if (els.devicePreviewBadge) els.devicePreviewBadge.hidden = true;
+    els.mediaPermissionMessage.textContent = denied
+      ? "Access was not granted. You can enable camera and microphone later from your browser settings."
+      : "Devices could not be started. Confirm they are connected and not being used by another app.";
+  }
+}
+
+function applySpeakerSelection() {
+  if (typeof els.devicePreviewVideo?.setSinkId === "function" && selectedDeviceIds.speaker) {
+    els.devicePreviewVideo.setSinkId(selectedDeviceIds.speaker).catch(() => {});
+  }
 }
 
 async function requestInterviewMediaPermissions() {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    els.mediaPermissionMessage.textContent = "Camera and microphone access is not supported in this browser.";
-    setPermissionState(els.cameraPermissionState, "blocked", "Unavailable");
-    setPermissionState(els.micPermissionState, "blocked", "Unavailable");
-    return;
-  }
-
-  setBusy(els.allowMediaPermissions, true, "Waiting for browser…");
-  els.mediaPermissionMessage.textContent = "Approve the camera and microphone request in your browser.";
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    const hasCamera = stream.getVideoTracks().length > 0;
-    const hasMic = stream.getAudioTracks().length > 0;
-    setPermissionState(els.cameraPermissionState, hasCamera ? "ready" : "blocked", hasCamera ? "Allowed" : "Not found");
-    setPermissionState(els.micPermissionState, hasMic ? "ready" : "blocked", hasMic ? "Allowed" : "Not found");
-    stream.getTracks().forEach((track) => track.stop());
-
-    let audioLabel = "Audio ready";
-    if (typeof navigator.mediaDevices.selectAudioOutput === "function") {
-      try {
-        const output = await navigator.mediaDevices.selectAudioOutput();
-        audioLabel = output?.label || "Output selected";
-      } catch {
-        audioLabel = "Default output";
-      }
-    } else {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      audioLabel = devices.some((device) => device.kind === "audiooutput") ? "Output found" : "Default output";
+  stopDeviceSetupStream();
+  if (els.videoDeviceToggle?.checked && selectedDeviceIds.camera) {
+    // Hand the chosen camera off to the real interview camera tile so the selection carries through.
+    try {
+      userMediaStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: selectedDeviceIds.camera } } });
+      if (els.userVideo) els.userVideo.srcObject = userMediaStream;
+      els.userTile?.classList.add("camera-on");
+      if (els.userTileState) els.userTileState.textContent = "Camera on";
+      if (els.toggleCamera) els.toggleCamera.textContent = "Disable camera";
+    } catch {
+      /* fall back to manual camera toggle inside the interview */
     }
-    setPermissionState(els.audioPermissionState, "ready", audioLabel);
-    els.mediaPermissionMessage.textContent = "Devices are ready. Your interview can now use voice, video, and question audio.";
-    localStorage.setItem(MEDIA_PERMISSION_KEY, "true");
-    setTimeout(() => { els.mediaPermissionBackdrop.hidden = true; }, 700);
-  } catch (error) {
-    const denied = error?.name === "NotAllowedError" || error?.name === "SecurityError";
-    setPermissionState(els.cameraPermissionState, "blocked", denied ? "Permission denied" : "Check failed");
-    setPermissionState(els.micPermissionState, "blocked", denied ? "Permission denied" : "Check failed");
-    setPermissionState(els.audioPermissionState, "ready", "Default output");
-    els.mediaPermissionMessage.textContent = denied
-      ? "Access was not granted. You can enable camera and microphone later from your browser settings."
-      : "Devices could not be checked. Confirm they are connected and not being used by another app.";
-  } finally {
-    setBusy(els.allowMediaPermissions, false, "Try device check again");
   }
+  els.mediaPermissionBackdrop.hidden = true;
 }
 
 function initializeMediaPermissionPrompt() {
   if (!els.mediaPermissionBackdrop) return;
   if (els.permissionAccent && els.micLanguage) els.permissionAccent.value = els.micLanguage.value || "en-IN";
-  els.mediaPermissionBackdrop.hidden = localStorage.getItem(MEDIA_PERMISSION_KEY) === "true";
+  loadSavedDeviceSelections();
+  const alreadySetUp = localStorage.getItem(MEDIA_PERMISSION_KEY) === "true";
+  els.mediaPermissionBackdrop.hidden = alreadySetUp;
+  if (!alreadySetUp) {
+    refreshDeviceLists();
+    startDevicePreview();
+  }
 }
+
+els.micDeviceSelect?.addEventListener("change", () => {
+  selectedDeviceIds.mic = els.micDeviceSelect.value;
+  saveDeviceSelections();
+});
+els.speakerDeviceSelect?.addEventListener("change", () => {
+  selectedDeviceIds.speaker = els.speakerDeviceSelect.value;
+  saveDeviceSelections();
+  applySpeakerSelection();
+});
+els.cameraDeviceSelect?.addEventListener("change", () => {
+  selectedDeviceIds.camera = els.cameraDeviceSelect.value;
+  saveDeviceSelections();
+  startDevicePreview();
+});
+els.videoDeviceToggle?.addEventListener("change", () => {
+  if (els.videoToggleLabel) els.videoToggleLabel.textContent = els.videoDeviceToggle.checked ? "On" : "Off";
+  startDevicePreview();
+});
 
 async function startMicVisualizer() {
   if (!els.micVisualizer || micVisualizerContext || !navigator.mediaDevices?.getUserMedia) return;
@@ -3218,6 +3327,7 @@ els.permissionAccent?.addEventListener("change", () => {
   saveState();
 });
 els.skipMediaPermissions?.addEventListener("click", () => {
+  stopDeviceSetupStream();
   els.mediaPermissionBackdrop.hidden = true;
   els.mediaPermissionMessage.textContent = "Device check skipped. The browser may ask again when you enable the camera or microphone.";
 });
@@ -3543,7 +3653,8 @@ els.toggleCamera?.addEventListener("click", async () => {
   }
   try {
     setBusy(els.toggleCamera, true, "Starting...");
-    userMediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const videoConstraint = selectedDeviceIds.camera ? { deviceId: { exact: selectedDeviceIds.camera } } : true;
+    userMediaStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraint });
     els.userVideo.srcObject = userMediaStream;
     els.userTile.classList.add("camera-on");
     els.userTileState.textContent = "Camera on";

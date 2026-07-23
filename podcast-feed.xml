@@ -5,8 +5,13 @@
     <description>Voice-narrated DevOps, Cloud, Kubernetes, GCP, MLOps, GenAI, and interview-prep practice questions with model answers, organized by topic. Generated from the AI Mock Interviewer question bank. Listen, pause to think through your own answer, then hear a strong approach.</description>
     <link>https://github.com/iarsingh/ai-mock-interviewer</link>
     <language>en-us</language>
-    <lastBuildDate>Thu, 23 Jul 2026 05:27:06 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 23 Jul 2026 07:23:49 +0000</lastBuildDate>
     <itunes:author>Akhilesh Ranjan Singh</itunes:author>
+    <itunes:owner>
+      <itunes:name>Akhilesh Ranjan Singh</itunes:name>
+      <itunes:email>akhileshranjan.ks@gmail.com</itunes:email>
+    </itunes:owner>
+    <managingEditor>akhileshranjan.ks@gmail.com (Akhilesh Ranjan Singh)</managingEditor>
     <itunes:explicit>false</itunes:explicit>
     <itunes:image href="https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/cover-art.png" />
     <image>
