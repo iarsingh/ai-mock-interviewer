@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>AI Mock Interview Podcast</title>
+    <description>Voice-narrated DevOps, Cloud, Kubernetes, GCP, MLOps, GenAI, and interview-prep practice questions with model answers, organized by topic. Generated from the AI Mock Interviewer question bank. Listen, pause to think through your own answer, then hear a strong approach.</description>
+    <link>https://github.com/iarsingh/ai-mock-interviewer</link>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 23 Jul 2026 04:16:58 +0000</lastBuildDate>
+    <itunes:author>Akhilesh Ranjan Singh</itunes:author>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:image href="https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/cover-art.png" />
+    <image>
+      <url>https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/cover-art.png</url>
+      <title>AI Mock Interview Podcast</title>
+      <link>https://github.com/iarsingh/ai-mock-interviewer</link>
+    </image>
+    <itunes:category text="Technology" />
+    <itunes:category text="Careers" />
+    <itunes:type>episodic</itunes:type>
+    <item>
+      <title>Behavioral and Screening Part 1</title>
+      <description>17 interview practice questions (14 with a full model answer), from the Behavioral and Screening track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</description>
+      <itunes:summary>17 interview practice questions (14 with a full model answer), from the Behavioral and Screening track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</itunes:summary>
+      <enclosure url="https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S04E01-behavioral-and-screening-part-1.mp3" length="11265837" type="audio/mpeg" />
+      <guid isPermaLink="false">https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S04E01-behavioral-and-screening-part-1.mp3</guid>
+      <pubDate>Thu, 01 Jan 2026 00:00:00 +0000</pubDate>
+      <itunes:duration>00:11:44</itunes:duration>
+      <itunes:season>4</itunes:season>
+      <itunes:episode>1</itunes:episode>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
+      <title>Behavioral and Screening Part 2</title>
+      <description>4 interview practice questions with full model answers, from the Behavioral and Screening track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</description>
+      <itunes:summary>4 interview practice questions with full model answers, from the Behavioral and Screening track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</itunes:summary>
+      <enclosure url="https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S04E02-behavioral-and-screening-part-2.mp3" length="3043326" type="audio/mpeg" />
+      <guid isPermaLink="false">https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S04E02-behavioral-and-screening-part-2.mp3</guid>
+      <pubDate>Thu, 01 Jan 2026 00:30:00 +0000</pubDate>
+      <itunes:duration>00:03:10</itunes:duration>
+      <itunes:season>4</itunes:season>
+      <itunes:episode>2</itunes:episode>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
+      <title>Security Part 1</title>
+      <description>16 interview practice questions with full model answers, from the Security track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</description>
+      <itunes:summary>16 interview practice questions with full model answers, from the Security track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</itunes:summary>
+      <enclosure url="https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S10E01-security-part-1.mp3" length="11403314" type="audio/mpeg" />
+      <guid isPermaLink="false">https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S10E01-security-part-1.mp3</guid>
+      <pubDate>Thu, 01 Jan 2026 01:00:00 +0000</pubDate>
+      <itunes:duration>00:11:53</itunes:duration>
+      <itunes:season>10</itunes:season>
+      <itunes:episode>1</itunes:episode>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
+      <title>Security Part 2</title>
+      <description>5 interview practice questions (4 with a full model answer), from the Security track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</description>
+      <itunes:summary>5 interview practice questions (4 with a full model answer), from the Security track. Each question is read aloud with a pause to think through your own answer before a strong model answer follows.</itunes:summary>
+      <enclosure url="https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S10E02-security-part-2.mp3" length="3536904" type="audio/mpeg" />
+      <guid isPermaLink="false">https://github.com/iarsingh/ai-mock-interviewer/releases/download/podcast-v1/S10E02-security-part-2.mp3</guid>
+      <pubDate>Thu, 01 Jan 2026 01:30:00 +0000</pubDate>
+      <itunes:duration>00:03:41</itunes:duration>
+      <itunes:season>10</itunes:season>
+      <itunes:episode>2</itunes:episode>
+      <itunes:episodeType>full</itunes:episodeType>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+  </channel>
+</rss>
