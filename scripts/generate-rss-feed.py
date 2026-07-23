@@ -8,6 +8,7 @@ from xml.sax.saxutils import escape
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST_PATH = os.path.join(ROOT, "audio", "podcast", "episodes-manifest.json")
 FEED_OUT = os.path.join(ROOT, "podcast-feed.xml")
+FEED_OUT_PAGES = os.path.join(ROOT, "docs", "podcast-feed.xml")
 
 REPO = "iarsingh/ai-mock-interviewer"
 RELEASE_TAG = "podcast-v1"
@@ -129,8 +130,11 @@ def main():
 
     with open(FEED_OUT, "w") as f:
         f.write(feed)
+    os.makedirs(os.path.dirname(FEED_OUT_PAGES), exist_ok=True)
+    with open(FEED_OUT_PAGES, "w") as f:
+        f.write(feed)
 
-    print(f"Wrote {FEED_OUT} with {len(items)} items")
+    print(f"Wrote {FEED_OUT} and {FEED_OUT_PAGES} with {len(items)} items")
 
 
 if __name__ == "__main__":
