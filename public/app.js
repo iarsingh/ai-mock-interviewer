@@ -1550,6 +1550,7 @@ let mockInterviewSets = [];
 let largeQuestionBank = [];
 let progressHistory = [];
 let customSkills = [];
+let cheatSheets = {};
 
 function createInterview(number) {
   return {
@@ -2758,6 +2759,102 @@ async function loadPracticeSources() {
   } catch {
     mockInterviewSets = [];
   }
+
+  try {
+    const response = await fetch("/cheat-sheets.json");
+    cheatSheets = await response.json();
+  } catch {
+    cheatSheets = {};
+  }
+}
+
+// Quick reference for last-minute review: open DevTools during a session and run
+// cheatSheet() to list topics, or cheatSheet('kubernetes') for one topic's key points.
+window.cheatSheet = function (topic) {
+  const topics = Object.keys(cheatSheets);
+  if (!topics.length) {
+    console.warn("Cheat sheets not loaded yet - try again in a moment.");
+    return;
+  }
+  if (!topic) {
+    console.log("%cAvailable cheat sheet topics:", "font-weight: bold");
+    console.table(topics.map((key) => ({ topic: key, label: cheatSheets[key].label })));
+    console.log("Run cheatSheet('<topic>') for one, e.g. cheatSheet('kubernetes').");
+    return;
+  }
+  const key = topics.find((k) => k === topic || k.toLowerCase() === String(topic).toLowerCase());
+  const entry = key ? cheatSheets[key] : null;
+  if (!entry) {
+    console.warn(`No cheat sheet for "${topic}". Available topics: ${topics.join(", ")}`);
+    return;
+  }
+  console.log(`%c${entry.label} cheat sheet`, "font-weight: bold; font-size: 13px;");
+  entry.points.forEach((point) => console.log(`• ${point}`));
+};
+
+const cheatSheetBackdrop = document.querySelector("#cheatSheetBackdrop");
+const cheatSheetTopicsEl = document.querySelector("#cheatSheetTopics");
+const cheatSheetPointsEl = document.querySelector("#cheatSheetPoints");
+let cheatSheetActiveTopic = null;
+
+function renderCheatSheetTopics() {
+  const topics = Object.keys(cheatSheets);
+  if (!cheatSheetActiveTopic || !cheatSheets[cheatSheetActiveTopic]) {
+    cheatSheetActiveTopic = topics[0] || null;
+  }
+  cheatSheetTopicsEl.innerHTML = topics
+    .map((key) => `
+      <button class="cheat-sheet-topic-btn${key === cheatSheetActiveTopic ? " active" : ""}" type="button" data-topic="${key}">
+        ${escapeHtml(cheatSheets[key].label)}
+      </button>
+    `)
+    .join("");
+  renderCheatSheetPoints();
+}
+
+function renderCheatSheetPoints() {
+  const entry = cheatSheetActiveTopic ? cheatSheets[cheatSheetActiveTopic] : null;
+  if (!entry) {
+    cheatSheetPointsEl.innerHTML = `<p class="cheat-sheet-empty">No cheat sheet topics loaded yet.</p>`;
+    return;
+  }
+  cheatSheetPointsEl.innerHTML = `
+    <h3>${escapeHtml(entry.label)}</h3>
+    <ul>${entry.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
+  `;
+}
+
+function openCheatSheet() {
+  if (!cheatSheetBackdrop) return;
+  cheatSheetBackdrop.classList.add("open");
+  renderCheatSheetTopics();
+}
+
+function closeCheatSheet() {
+  cheatSheetBackdrop?.classList.remove("open");
+}
+
+if (cheatSheetBackdrop) {
+  document.querySelector("#openCheatSheet")?.addEventListener("click", openCheatSheet);
+
+  cheatSheetBackdrop.addEventListener("click", (event) => {
+    if (event.target === cheatSheetBackdrop) closeCheatSheet();
+  });
+
+  cheatSheetBackdrop.querySelector('[data-action="close-cheat-sheet"]')?.addEventListener("click", closeCheatSheet);
+
+  cheatSheetTopicsEl.addEventListener("click", (event) => {
+    const button = event.target.closest(".cheat-sheet-topic-btn");
+    if (!button) return;
+    cheatSheetActiveTopic = button.dataset.topic;
+    renderCheatSheetTopics();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && cheatSheetBackdrop.classList.contains("open")) {
+      closeCheatSheet();
+    }
+  });
 }
 
 function questionKey(question) {

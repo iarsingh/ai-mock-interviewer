@@ -205,3 +205,10 @@ console.log(`Generated answer guidance: ${generatedAnswers}`);
 const outPath = path.join(__dirname, "answer-bank", "final-qa-dataset.json");
 fs.writeFileSync(outPath, JSON.stringify(finalEntries, null, 2));
 console.log("Wrote", path.relative(ROOT, outPath));
+
+// Slim copy served to the browser: powers the in-app question bank reader
+// and the "questions covered" stat. Excludes nothing sensitive - same data,
+// just placed where the client can fetch it directly.
+const publicPath = path.join(ROOT, "public", "qa-dataset.json");
+fs.writeFileSync(publicPath, JSON.stringify(finalEntries));
+console.log("Wrote", path.relative(ROOT, publicPath));
