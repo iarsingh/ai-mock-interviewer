@@ -16,6 +16,10 @@ OUT_PATH = os.path.join(ROOT, "AI-Mock-Interview-Question-Bank.docx")
 with open(DATA_PATH, "r") as f:
     entries = json.load(f)
 
+CHEAT_SHEET_PATH = os.path.join(ROOT, "public", "cheat-sheets.json")
+with open(CHEAT_SHEET_PATH, "r") as f:
+    cheat_sheets = json.load(f)
+
 TOPIC_ORDER = [
     "GCP / DevOps / SRE Question Bank",
     "Kubernetes Fundamentals (101–200)",
@@ -106,7 +110,7 @@ doc.add_paragraph()
 desc = doc.add_paragraph()
 desc.add_run(
     "This document combines every question and answer from the ai-mock-interviewer question bank: "
-    "the 80 fixed practice mock interview rounds, the full topic-organized technical question bank "
+    "the 103 fixed practice mock interview rounds, the full topic-organized technical question bank "
     "(GCP, Kubernetes/GKE, Terraform, Docker, CI/CD, Observability, Security, Networking, Linux, System Design, "
     "SRE/behavioral, Python, Go, FastAPI, Ansible, Scripting, Coding Exercises, MLOps, and LLMOps/GenAI), "
     "and the Technology Risk Lead track."
@@ -163,8 +167,8 @@ def add_qa(number, entry):
     a_run = a_para.add_run("A: " + entry["answer"])
     a_run.font.size = Pt(10.5)
 
-# ---- Part 1: Fixed Mock Interview Sets, in order 1..77 ----
-add_heading("Part 1 — Fixed Mock Interview Rounds (1–80)", level=1)
+# ---- Part 1: Fixed Mock Interview Sets, in order ----
+add_heading("Part 1 — Fixed Mock Interview Rounds (1–103)", level=1)
 doc.add_paragraph(
     "Each round is a fixed, realistic mock interview set. Use one round per practice session."
 )
@@ -201,6 +205,22 @@ if other_sections:
         for entry in other_sections[sec]:
             add_qa(counter, entry)
             counter += 1
+
+# ---- Part 4: quick reference cheat sheet ----
+doc.add_page_break()
+add_heading("Part 4 — Quick Reference Cheat Sheet", level=1)
+doc.add_paragraph(
+    "Condensed keywords and reminders for last-minute review before an interview. "
+    "The same content is available live during a practice session by opening the browser "
+    "console and running cheatSheet('topic')."
+)
+
+for topic in cheat_sheets.values():
+    add_heading(topic["label"], level=2)
+    for point in topic["points"]:
+        p = doc.add_paragraph(style="List Bullet")
+        run = p.add_run(point)
+        run.font.size = Pt(10.5)
 
 doc.save(OUT_PATH)
 print(f"Wrote {OUT_PATH}")

@@ -6,7 +6,16 @@ const dashboardProfiles = {
   mlops: { label: "MLOps Engineer", role: "Senior MLOps Engineer", technology: "mlops", focus: "Python, MLflow, Kubeflow, Vertex AI, training pipelines, feature stores, model registry, model serving, drift monitoring, Kubernetes, CI/CD for ML" },
   "system-design": { label: "System Design", role: "Software Engineer - System Design Round", technology: "scenario", focus: "requirements clarification, capacity estimation, API design, data modeling, caching, queues, load balancing, horizontal scaling, consistency, reliability, security, observability, and architecture trade-offs" },
   dsa: { label: "Data Structures & Algorithms", role: "Software Engineer - DSA Round", technology: "coding", focus: "arrays, strings, hash maps, linked lists, stacks, queues, trees, graphs, recursion, sorting, searching, greedy algorithms, dynamic programming, and time and space complexity" },
-  cumulative: { label: "Cumulative Random Interview", role: "Cross-functional Software Engineering Interview", technology: "all", focus: "DevOps, frontend, backend, MLOps, cloud, system design, data structures and algorithms, security, behavioral questions, and production scenarios", questionOrder: "random", practiceDay: "all", mockSet: "random-bank" }
+  cumulative: { label: "Cumulative Random Interview", role: "Cross-functional Software Engineering Interview", technology: "all", focus: "DevOps, frontend, backend, MLOps, cloud, system design, data structures and algorithms, security, behavioral questions, and production scenarios", questionOrder: "random", practiceDay: "all", mockSet: "random-bank" },
+  "python-dev": { label: "Python Developer", role: "Senior Python Developer", technology: "all", focus: "GIL, generators, decorators, context managers, garbage collection, type hints, asyncio, metaclasses, common pitfalls", mockSet: "set-99" },
+  "go-dev": { label: "Go Developer", role: "Senior Go Developer", technology: "all", focus: "Goroutines and channels, select, error handling philosophy, interfaces, race detection, context.Context, pprof, table-driven tests", mockSet: "set-100" },
+  "javascript-dev": { label: "JavaScript Developer", role: "Senior JavaScript Developer", technology: "all", focus: "Closures, event loop, prototypal inheritance, this binding, Promises/async-await, hoisting, ==/===, debounce/throttle, memory leaks, CommonJS vs ESM", mockSet: "set-101" },
+  "bash-scripting": { label: "Shell and Bash Scripting", role: "DevOps Engineer - Shell Scripting Round", technology: "all", focus: "set -euo pipefail, quoting pitfalls, trap for cleanup, process substitution, heredocs, arrays, parameter expansion, cron robustness, debugging, xargs, sed/awk", mockSet: "set-102" },
+  rag: { label: "RAG (Retrieval-Augmented Generation)", role: "AI Engineer - RAG Round", technology: "all", focus: "Hybrid search, multi-hop retrieval, chunking strategy, groundedness evaluation, access control, production RAG monitoring", mockSet: "set-94" },
+  llm: { label: "LLM Engineering Fundamentals", role: "AI Engineer - LLM Engineering Round", technology: "all", focus: "Transformer internals, tokenization, sampling parameters, function calling, structured output, model selection, embeddings", mockSet: "set-95" },
+  llmops: { label: "LLMOps Production Operations", role: "MLOps/LLMOps Engineer", technology: "all", focus: "Prompt versioning, cost tracking, regression testing for non-deterministic output, prompt caching, observability tooling, PII handling", mockSet: "set-96" },
+  "agentic-ai": { label: "Agentic AI Architecture", role: "AI Engineer - Agentic AI Round", technology: "all", focus: "ReAct vs Plan-and-Execute, agent memory design, OWASP LLM Top 10 for agents, multi-agent communication, agentic RAG", mockSet: "set-97" },
+  genai: { label: "Generative AI Beyond Text", role: "AI Engineer - Generative AI Round", technology: "all", focus: "Diffusion models, enterprise GenAI use cases, ethics/bias/copyright, content moderation, synthetic data, watermarking", mockSet: "set-98" }
 };
 
 const roleCards = document.querySelectorAll("[data-dashboard-role]");
@@ -103,6 +112,9 @@ function selectDashboardRole(key, persist = true) {
     card.classList.toggle("active", active);
     card.setAttribute("aria-pressed", String(active));
   });
+  if (specializedRoundSelect) {
+    specializedRoundSelect.value = specializedRoundSelect.querySelector(`option[value="${key}"]`) ? key : "";
+  }
   selectedTrack.textContent = profile.label;
   launchTitle.textContent = `${profile.label} interview is ready`;
   launchDescription.textContent = `The question pool will focus on ${profile.focus}.`;
@@ -128,6 +140,11 @@ function selectDashboardRole(key, persist = true) {
 }
 
 roleCards.forEach((card) => card.addEventListener("click", () => selectDashboardRole(card.dataset.dashboardRole)));
+
+const specializedRoundSelect = document.querySelector("#specializedRoundSelect");
+specializedRoundSelect?.addEventListener("change", () => {
+  if (specializedRoundSelect.value) selectDashboardRole(specializedRoundSelect.value);
+});
 decorateSkillLogos();
 loadQuestionCoverage();
 startButton.addEventListener("click", (event) => { if (startButton.getAttribute("aria-disabled") === "true") event.preventDefault(); });

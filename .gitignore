@@ -6,3 +6,6 @@ audio/
 data/users.json
 data/contacts.json
 data/session-secret.txt
+.youtube-token.json
+youtube-client-secret.json
+youtube-podcast-videos/

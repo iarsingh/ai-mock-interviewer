@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "start:offline": "OFFLINE_ONLY=1 node server.js"
+    "start:offline": "OFFLINE_ONLY=1 node server.js",
+    "stop": "lsof -ti:${PORT:-3030} | xargs kill 2>/dev/null || echo 'No process running on port '${PORT:-3030}"
   },
   "engines": {
     "node": ">=18"
