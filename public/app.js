@@ -25,6 +25,8 @@ const els = {
   role: document.querySelector("#role"),
   level: document.querySelector("#level"),
   topic: document.querySelector("#topic"),
+  activeTopicBanner: document.querySelector("#activeTopicBanner"),
+  activeTopicName: document.querySelector("#activeTopicName"),
   cvText: document.querySelector("#cvText"),
   cvPdf: document.querySelector("#cvPdf"),
   importCvFile: document.querySelector("#importCvFile"),
@@ -164,6 +166,9 @@ const roleProfiles = {
   mlops: { role: "Senior MLOps Engineer", technology: "mlops", focus: "Python, MLflow, Kubeflow, Vertex AI, training pipelines, feature stores, model registry, model serving, drift monitoring, Kubernetes, CI/CD for ML" }
 };
 let selectedCareerProfile = "";
+let selectedInterviewTopics = [];
+const serverInterviewId = new URLSearchParams(window.location.search).get("id");
+let currentServerQuestionId = null;
 
 function syncCareerTracks(activeProfile = "") {
   els.careerTracks.forEach((track) => {
@@ -171,6 +176,14 @@ function syncCareerTracks(activeProfile = "") {
     track.classList.toggle("active", active);
     track.setAttribute("aria-pressed", String(active));
   });
+}
+
+function syncActiveTopicBanner() {
+  if (!els.activeTopicBanner || !els.activeTopicName) return;
+  const isTopicOnly = selectedCareerProfile === "custom-topic";
+  const topic = els.topic.value.trim();
+  els.activeTopicBanner.hidden = !isTopicOnly || !topic;
+  els.activeTopicName.textContent = topic;
 }
 
 function applyRoleProfile(profileKey) {
@@ -181,11 +194,15 @@ function applyRoleProfile(profileKey) {
   els.technology.value = profile.technology;
   selectedCareerProfile = profileKey;
   syncCareerTracks(profileKey);
+  syncActiveTopicBanner();
   els.technology.dispatchEvent(new Event("change"));
 }
 const defaultTargetSkills = `Target role family: Senior GCP DevOps / SRE / Cloud Engineer / Platform Engineer / Cloud Reliability Engineer / ML Platform Engineer
-Experience level: 6-8 years
-Target companies: Google-style interviews and product companies
+Actual experience: 7 years
+Interview calibration: questions and evaluation should match the architecture depth, production ownership, ambiguity handling, cross-team leadership, and trade-off analysis commonly expected from 10-15 year candidates. Never claim more than 7 years of actual experience.
+Compensation target: ₹25 LPA
+Preparation window: 50 days
+Target companies: product companies and senior cloud/platform/SRE teams
 
 Core skills to test:
 
@@ -327,7 +344,7 @@ Instagram: https://www.instagram.com/iarsingh/
 Topmate: https://topmate.io/iamarsingh
 
 PROFESSIONAL SUMMARY
-Senior MLOps & Platform Engineer with nearly 7 years of experience designing, automating, and operating cloud-native infrastructure across GCP, AWS, and Azure. Experienced in building production-ready AI platforms using Kubernetes, Terraform, Vertex AI, MLflow, FastAPI, Docker, and GitOps, enabling scalable model deployment, infrastructure automation, and platform reliability. Skilled in Platform Engineering, Infrastructure as Code, and DevSecOps, delivering self-service cloud platforms, standardized landing zones, and automated deployment frameworks. Hands-on experience in LLMOps, RAG pipelines, GPU-accelerated inference, and model lifecycle management, bridging software engineering and intelligent automation.
+Senior MLOps & Platform Engineer with 7 years of experience designing, automating, and operating cloud-native infrastructure across GCP, AWS, and Azure. Experienced in building production-ready AI platforms using Kubernetes, Terraform, Vertex AI, MLflow, FastAPI, Docker, and GitOps, enabling scalable model deployment, infrastructure automation, and platform reliability. Skilled in Platform Engineering, Infrastructure as Code, and DevSecOps, delivering self-service cloud platforms, standardized landing zones, and automated deployment frameworks. Hands-on experience in LLMOps, RAG pipelines, GPU-accelerated inference, and model lifecycle management, bridging software engineering and intelligent automation.
 
 CORE COMPETENCIES
 DevOps & Platform Engineering, Cloud Platform Engineering, Kubernetes & Container Orchestration, Infrastructure as Code (Terraform Enterprise), CI/CD Automation & GitOps, Multi-Cloud Architecture (GCP, AWS, Azure), DevSecOps & Cloud Security Governance, Site Reliability Engineering (SRE), Observability & Performance Monitoring, MLOps & AI Infrastructure Engineering
@@ -1891,7 +1908,8 @@ function saveState() {
     answerPause: els.answerPause.value,
     interviewMode: currentMode(),
     interviewerMood: els.interviewerMood?.value || "neutral",
-    careerProfile: selectedCareerProfile
+    careerProfile: selectedCareerProfile,
+    selectedTopics: selectedInterviewTopics
   };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -1923,12 +1941,14 @@ function loadState() {
   }
   const shouldResetAnswers = saved.answerResetVersion !== ANSWER_RESET_VERSION;
   selectedCareerProfile = saved.careerProfile || "";
+  selectedInterviewTopics = Array.isArray(saved.selectedTopics) ? saved.selectedTopics : [];
   syncCareerTracks(selectedCareerProfile);
   els.role.value = saved.role || els.role.value;
   els.level.value = saved.level || els.level.value;
   els.topic.value = !saved.topic || saved.topic === els.topic.defaultValue
     ? defaultFocusAreas
     : saved.topic;
+  syncActiveTopicBanner();
   els.cvText.value = !saved.cvText || saved.cvText.includes("Paste the full CV text here")
     ? defaultCvText
     : saved.cvText;
@@ -2413,8 +2433,37 @@ function contextPayload() {
     cvText: els.cvText.value,
     jdText: els.jdText.value,
     interviewNumber,
-    mood: els.interviewerMood?.value || "neutral"
+    mood: els.interviewerMood?.value || "neutral",
+    topicOnly: selectedCareerProfile === "custom-topic",
+    allowedTopics: selectedInterviewTopics.length ? selectedInterviewTopics : [els.topic.value.trim()]
   };
+}
+
+async function loadServerInterview() {
+  if (!serverInterviewId) return;
+  let response = await fetch(`/api/v1/interviews/${encodeURIComponent(serverInterviewId)}`);
+  let data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Could not restore the interview.");
+  let interview = data.interview;
+  if (interview.status === "READY") {
+    response = await fetch(`/api/v1/interviews/${encodeURIComponent(serverInterviewId)}/start`, { method: "POST" });
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Could not start the interview.");
+    interview = data.interview;
+  }
+  els.role.value = interview.role;
+  selectedCareerProfile = "custom-topic";
+  selectedInterviewTopics = interview.topics.map((topic) => topic.name);
+  els.topic.value = selectedInterviewTopics.join(", ");
+  els.technology.value = "all";
+  syncCareerTracks("");
+  syncActiveTopicBanner();
+  const latestQuestion = interview.questions[interview.questions.length - 1];
+  if (latestQuestion) {
+    currentServerQuestionId = latestQuestion.id;
+    setQuestionFromText(latestQuestion.question);
+  }
+  saveState();
 }
 
 const moodEmojis = { neutral: "😐", friendly: "🙂", strict: "🧐" };
@@ -2659,7 +2708,45 @@ function buildCustomJdMockQuestions() {
   ]).slice(0, 10);
 }
 
+function customTopicQuestionPool() {
+  const ignoredWords = new Set([
+    "about", "advanced", "and", "developer", "engineer", "engineering", "focus",
+    "for", "interview", "mock", "role", "senior", "specialist", "the", "with"
+  ]);
+  const topic = els.topic.value.trim();
+  const topicGroups = (selectedInterviewTopics.length ? selectedInterviewTopics : [topic]).map((entry) =>
+    [...new Set((entry.toLowerCase().match(/[a-z0-9+#.-]{3,}/g) || [])
+      .filter((word) => !ignoredWords.has(word)))]
+  ).filter((words) => words.length);
+  const candidates = uniqueQuestions([
+    ...specializedQuestions(),
+    ...largeQuestionBank.map((item) => item.question),
+    ...questionBank
+  ]);
+  const ranked = candidates
+    .map((question) => ({
+      question,
+      score: Math.max(0, ...topicGroups.map((words) => {
+        const matches = words.reduce((total, word) => total + (question.toLowerCase().includes(word) ? 1 : 0), 0);
+        const required = words.length > 1 ? 2 : 1;
+        return matches >= required ? matches : 0;
+      }))
+    }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score);
+  const bestScore = ranked[0]?.score || 0;
+  const strictMatches = bestScore > 0
+    ? ranked.filter((item) => item.score === bestScore).map((item) => item.question)
+    : [];
+  return strictMatches.length ? strictMatches : [
+    `Topic focus — ${topic}: Explain the core concepts, then walk through a realistic production scenario, important trade-offs, troubleshooting signals, and best practices.`
+  ];
+}
+
 function questionPool() {
+  if (selectedCareerProfile === "custom-topic") {
+    return customTopicQuestionPool();
+  }
   if (els.technology.value.startsWith("custom-")) {
     return uniqueQuestions(customSkillById(els.technology.value)?.questions || []);
   }
@@ -2726,7 +2813,7 @@ async function loadPracticeSources() {
   }
 
   try {
-    const response = await fetch("/30-day-plan.json");
+    const response = await fetch("/50-day-plan.json");
     practicePlan = await response.json();
     for (const day of practicePlan) {
       const option = document.createElement("option");
@@ -3069,7 +3156,7 @@ async function api(path, payload) {
     body: JSON.stringify(payload)
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Request failed.");
+  if (!response.ok) throw new Error(data.error?.message || data.error || "Request failed.");
   return data;
 }
 
@@ -3117,6 +3204,12 @@ async function loadNextQuestion(button = els.newQuestion) {
   setBusy(button, true, "Thinking");
   startAiThinking(["Reviewing interview history...", "Picking the next topic...", "Writing your next question..."]);
   try {
+    if (serverInterviewId) {
+      const data = await api(`/api/v1/interviews/${encodeURIComponent(serverInterviewId)}/questions/next`, {});
+      currentServerQuestionId = data.id;
+      setQuestionFromText(data.question);
+      return;
+    }
     const data = await api("/api/question", {
       ...contextPayload(),
       history: currentInterview().history
@@ -3163,8 +3256,16 @@ async function submitAnswer() {
   saveState();
 
   try {
+    if (serverInterviewId && currentServerQuestionId) {
+      await api(`/api/v1/interviews/${encodeURIComponent(serverInterviewId)}/answers`, {
+        questionId: currentServerQuestionId,
+        answerType: "TEXT",
+        answer
+      });
+    }
     if (liveMode || els.autoNext.checked) {
-      loadFastQuestion();
+      if (serverInterviewId) await loadNextQuestion();
+      else loadFastQuestion();
     }
   } catch (error) {
     els.feedbackOutput.innerHTML = markdownToHtml(`## Error\n${error.message}`);
@@ -4194,6 +4295,9 @@ els.endInterview.addEventListener("click", async () => {
     currentInterview().resultsSummary = extractResultsSummary(data.feedback).summary;
     archiveCurrentInterview();
     saveState();
+    if (serverInterviewId) {
+      await api(`/api/v1/interviews/${encodeURIComponent(serverInterviewId)}/complete`, {});
+    }
   } catch (error) {
     els.feedbackOutput.innerHTML = markdownToHtml(`## Error\n${error.message}`);
   } finally {
@@ -4231,6 +4335,9 @@ loadPracticeSources().then(() => {
   updateAnswerEditor();
   checkHealth();
   revealSetupSection(window.location.hash);
+  loadServerInterview().catch((error) => {
+    els.feedbackOutput.innerHTML = markdownToHtml(`## Interview Recovery Error\n${error.message}`);
+  });
 });
 
 function revealSetupSection(hash) {
@@ -4252,6 +4359,7 @@ document.querySelector('#openCvJdSetup')?.addEventListener('click', (event) => {
 [els.role, els.level, els.topic, els.cvText, els.jdText, els.questionOrder, els.autoNext].forEach((input) => {
   input.addEventListener("change", saveState);
 });
+els.topic.addEventListener("input", syncActiveTopicBanner);
 
 els.technology.addEventListener("change", () => {
   questionBankIndex = 0;
