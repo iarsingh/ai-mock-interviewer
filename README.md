@@ -5,7 +5,9 @@ preparation — runs entirely in your browser against a local Node server, with 
 required.
 
 The app asks interview questions, reads them aloud, records or accepts typed answers, saves progress
-locally, and works fully offline using a built-in question bank of 2,000+ questions with answers.
+locally, and works fully offline using a deduplicated built-in question bank of 4,124 questions with answers and question-type metadata.
+
+Current preparation calibration: **7 years of actual experience**, **₹25 LPA target**, **50 days remaining**, with question depth raised to the architecture and ownership expectations commonly used for 10–15-year roles without overstating tenure.
 
 ## Contents
 
@@ -35,7 +37,7 @@ locally, and works fully offline using a built-in question bank of 2,000+ questi
 - Voice-led mock interview flow with question audio and answer transcript.
 - Offline mode with built-in mock questions and local template feedback.
 - Practice by topic: Kubernetes/GKE, Docker, GCP, Terraform, Ansible, Python, FastAPI, Go, SRE, MLOps, LLMOps, CI/CD, observability, security, networking, Linux, platform engineering, behavioral, and basics.
-- 30-day practice plan and fixed mock interview sets.
+- 50-day practice plan and fixed mock interview sets.
 - Custom JD practice by pasting or uploading a job description.
 - Custom skills from the UI, so developers can add Java, React, AWS, Spring Boot, or any other topic locally.
 - Progress history saved in browser local storage.
@@ -89,6 +91,35 @@ http://127.0.0.1:3030
 ```
 
 This is the easiest way for another person to run the project. It works with the built-in local question bank and does not require an AI API key.
+
+### Automatic question-bank synchronization
+
+Both `npm start` and `npm run start:offline` synchronize every question-bank
+output before the server starts. The sync rebuilds the canonical and browser
+datasets, UI topic index counts, text exports, Word document, and the companion
+`interview-quiz-app` flashcard dataset.
+
+To synchronize everything without starting the server:
+
+```bash
+npm run sync:question-bank
+```
+
+### Server-persisted interviews
+
+Interviews launched from the Skills Dashboard are persisted in SQLite and open as
+`/session.html?id=<interviewId>`. Refreshing the page restores the interview configuration,
+topics, generated questions, and submitted answers from the backend.
+
+The default database is `data/interviews.sqlite`; override it with `SQLITE_PATH`. Run the
+modular interview-service tests with:
+
+```bash
+npm test
+```
+
+Lifecycle APIs are under `/api/v1/interviews`. Health checks are available at `/health/live`
+and `/health/ready`. See [docs/HLD_LLD.md](docs/HLD_LLD.md) for the implemented architecture.
 
 ## Sign In And Accounts
 
@@ -301,10 +332,10 @@ Examples:
 - Behavioral ownership
 - Today's audio interview recap
 
-The 30-day plan is available in the app and in:
+The 50-day plan is available in the app and in:
 
 ```text
-30-day-interview-plan.md
+50-day-interview-plan.md
 ```
 
 The mock set list is available in:
@@ -322,7 +353,7 @@ ai-mock-interviewer/
     app.js
     styles.css
     mock-interview-sets.json
-    30-day-plan.json
+    50-day-plan.json
   server.js
   package.json
   package-lock.json
@@ -339,7 +370,7 @@ Important files:
 - `public/app.js`: interview logic, audio, state, and question flow.
 - `public/styles.css`: UI styling.
 - `public/mock-interview-sets.json`: fixed mock interview rounds.
-- `public/30-day-plan.json`: daily practice plan.
+- `public/50-day-plan.json`: daily practice plan.
 
 ## Developer Customization
 
@@ -351,7 +382,7 @@ Developers can customize the app in two ways:
 Common files to edit:
 
 - Add fixed interview rounds: `public/mock-interview-sets.json`
-- Add daily practice questions: `public/30-day-plan.json`
+- Add daily practice questions: `public/50-day-plan.json`
 - Change frontend UI: `public/index.html`
 - Change frontend logic/audio behavior: `public/app.js`
 - Change styling: `public/styles.css`

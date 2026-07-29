@@ -11,6 +11,46 @@ function normalizeQuestion(value) {
     .trim();
 }
 
+function classifyQuestionType(question) {
+  const text = String(question || "").toLowerCase();
+  if (/\b(troubleshoot|debug|investigate|fails?|failure|pending|crashloop|exhaust|corrupt|deleted|recover|restore)\b/.test(text)) return "Troubleshooting";
+  if (/^(tell me|have you|are you|do you use|what activities|what was your|in your environment|which tool do you use)/.test(text)) return "Experience";
+  if (/\b(difference|compare|versus| vs |choose|prefer|instead of)\b/.test(text)) return "Comparison";
+  if (/^(how would you design|design |explain the complete|what is the complete request flow|how does traffic flow)/.test(text)) return "Design / Architecture";
+  if (/^(suppose|if |when |a customer|you scale|what happens)/.test(text)) return "Scenario";
+  if (/^(how do you|how would you|how does|what should|what inputs|where do you|which .* required)/.test(text)) return "Implementation / Workflow";
+  return "Conceptual";
+}
+
+const TOPIC_RULES = [
+  ["Kubernetes", ["kubernetes", "k8s", "gke", "eks", "helm", "ingress", "kubelet", "etcd", "coredns", "rbac"]],
+  ["Docker & Containers", ["docker", "container", "containerd"]],
+  ["Terraform / IaC", ["terraform", "iac", "infrastructure as code"]],
+  ["GCP / Cloud", ["gcp", "cloud", "azure", "aws", "landing zone", "iam"]],
+  ["Networking", ["network", "dns", "load balanc", "mtls", "hybrid networking"]],
+  ["Observability", ["observability", "monitoring", "logging", "tracing", "datadog", "prometheus", "grafana", "opentelemetry", "elastic", "kibana"]],
+  ["CI/CD & GitOps", ["ci/cd", "gitops", "jenkins", "argo"]],
+  ["Security & Risk", ["security", "risk", "compliance", "audit", "governance", "sentinel", "devsecops"]],
+  ["SRE & Incident Response", ["sre", "reliability", "incident", "outage", "troubleshoot"]],
+  ["Ansible & Automation", ["ansible", "automation"]],
+  ["Python", ["python"]],
+  ["FastAPI / APIs", ["fastapi", "api"]],
+  ["Linux", ["linux"]],
+  ["DSA / Coding", ["dsa", "coding", "leetcode", "algorithm"]],
+  ["System Design", ["system design", "architecture"]],
+  ["MLOps / LLMOps / GenAI", ["mlops", "llmops", "genai", "llm ", "rag", "kubeflow", "mlflow", "machine learning", "prompt engineering"]],
+  ["Databases", ["database", "postgres", "sql", "kafka"]],
+  ["Behavioral / HR", ["behav", "hr", "leadership", "stakeholder", "experience"]]
+];
+
+function classifyTopic(entry) {
+  const text = [entry.category, entry.section, entry.question].filter(Boolean).join(" ").toLowerCase();
+  for (const [topic, keywords] of TOPIC_RULES) {
+    if (keywords.some((keyword) => text.includes(keyword))) return topic;
+  }
+  return "General";
+}
+
 function parseLargeBank() {
   const text = fs.readFileSync(path.join(ROOT, "1000 DevOps + MLOps + Kubernetes + GCP Interview Questions.txt"), "utf8");
   const lines = text.split(/\r?\n/);
@@ -133,6 +173,18 @@ function loadCodingAnswerBank() {
   return entries;
 }
 
+function loadImportedConversationQuestions() {
+  const p = path.join(__dirname, "answer-bank", "imported-conversation-questions.json");
+  if (!fs.existsSync(p)) return [];
+  return JSON.parse(fs.readFileSync(p, "utf8"));
+}
+
+function loadGcpPrivateConnectivityQuestions() {
+  const p = path.join(__dirname, "answer-bank", "87-gcp-psc-psa-policy-routing-questions.json");
+  if (!fs.existsSync(p)) return [];
+  return JSON.parse(fs.readFileSync(p, "utf8"));
+}
+
 function loadHandWrittenAnswers() {
   const dir = path.join(__dirname, "answer-bank");
   const merged = new Map();
@@ -178,8 +230,10 @@ for (const [key, answer] of handWritten) {
 const mockSets = loadMockSets();
 const appBanks = loadAppBanks();
 const codingBank = loadCodingAnswerBank();
+const importedConversationQuestions = loadImportedConversationQuestions();
+const gcpPrivateConnectivityQuestions = loadGcpPrivateConnectivityQuestions();
 
-const allSources = [...mockSets, ...codingBank, ...appBanks, ...techQa, ...largeBank];
+const allSources = [...mockSets, ...codingBank, ...appBanks, ...importedConversationQuestions, ...gcpPrivateConnectivityQuestions, ...techQa, ...largeBank];
 
 const seen = new Set();
 const finalEntries = [];
@@ -194,6 +248,8 @@ for (const e of allSources) {
     source: e.source,
     section: e.section,
     category: e.category || null,
+    topic: classifyTopic(e),
+    questionType: e.questionType || classifyQuestionType(e.question),
     question: e.question,
     answer
   });
