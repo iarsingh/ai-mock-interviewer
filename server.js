@@ -26,6 +26,7 @@ const OFFLINE_ONLY = process.env.OFFLINE_ONLY === "1" || process.env.OFFLINE_ONL
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-4-8";
 const claudeClient = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 const PUBLIC_DIR = path.join(__dirname, "public");
+const FRONTEND_DIST_DIR = path.join(__dirname, "frontend", "dist");
 const DATA_DIR = path.join(__dirname, "data");
 const PROFILE_PATH = path.join(DATA_DIR, "applicant-profile.json");
 const QUESTION_BANK_PATH = path.join(__dirname, "1000 DevOps + MLOps + Kubernetes + GCP Interview Questions.txt");
@@ -1281,29 +1282,30 @@ function getInterviewRoutes() {
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const requested = url.pathname === "/" ? "/index.html" : url.pathname;
-  const filePath = path.normalize(path.join(PUBLIC_DIR, requested));
+  const candidatePaths = [
+    path.normalize(path.join(FRONTEND_DIST_DIR, requested)),
+    path.normalize(path.join(PUBLIC_DIR, requested))
+  ];
 
-  if (!filePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403);
-    res.end("Forbidden");
-    return;
-  }
+  for (const filePath of candidatePaths) {
+    const rootDir = filePath.startsWith(FRONTEND_DIST_DIR) ? FRONTEND_DIST_DIR : PUBLIC_DIR;
+    if (!filePath.startsWith(rootDir)) continue;
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) continue;
 
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      res.writeHead(404);
-      res.end("Not found");
-      return;
-    }
-
+    const contentType = contentTypes[path.extname(filePath)] || "application/octet-stream";
+    const data = fs.readFileSync(filePath);
     res.writeHead(200, {
-      "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream",
+      "Content-Type": contentType,
       "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
       Pragma: "no-cache",
       Expires: "0"
     });
     res.end(req.method === "HEAD" ? undefined : data);
-  });
+    return;
+  }
+
+  res.writeHead(404);
+  res.end("Not found");
 }
 
 async function handleRequest(req, res) {
