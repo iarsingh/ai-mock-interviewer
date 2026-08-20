@@ -8,6 +8,30 @@ const answerBankPath = path.join(__dirname, "answer-bank", "final-qa-dataset.jso
 const generatedAnswersPath = path.join(__dirname, "answer-bank", "actual-interview-generated-answers.json");
 const curatedAnswersPath = path.join(__dirname, "answer-bank", "93-curated-revision-answers.json");
 const outputPath = path.join(root, "actual-interview-questions-and-answers.md");
+const landingZoneRoundPath = path.join(root, "data", "actual-interview-landing-zone-gke-coding-round-2026-08-20.txt");
+const kubernetesElkDynatraceRoundPath = path.join(root, "data", "actual-interview-kubernetes-elk-dynatrace-round-2026-08-20.txt");
+
+function parseNumberedInterviewRound(filePath, source) {
+  let category = "General";
+  const entries = [];
+  for (const rawLine of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const match = line.match(/^\d+\.\s+(.+)$/);
+    if (!match) {
+      category = line;
+      continue;
+    }
+    const question = match[1];
+    const questionType = /difference| vs |choose/i.test(question)
+      ? "Comparison"
+      : /how (?:do|does|would|can)|given |solve |create |find |troubleshoot|recover|mitigate/i.test(question)
+        ? "Implementation / Workflow"
+        : "Conceptual";
+    entries.push({ source, section: category, category, questionType, question });
+  }
+  return entries;
+}
 
 function normalize(value) {
   return String(value || "")
@@ -18,9 +42,26 @@ function normalize(value) {
 }
 
 function normalizeForDeduplication(value) {
-  return normalize(value)
-    .replace(/^what are\b/, "what is")
-    .replace(/^what does\b/, "what is");
+  const normalized = normalize(value)
+    .replace(/\bworked on\b/g, "worked with")
+    .replace(/\brequest user\b/g, "user request")
+    .replace(/\s+/g, " ")
+    .trim();
+  const isShort = normalized.split(" ").length <= 14;
+  const isDefinitionOrComparison = /^(what (is|are)|explain|describe|define|difference between|what is the difference between)\b/.test(normalized);
+  if (!isShort || !isDefinitionOrComparison) {
+    return normalized
+      .replace(/^(can you|could you|please)\s+/, "")
+      .replace(/\b(a|an|the)\b/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  return normalized
+    .replace(/^(what (is|are)|explain|describe|define|what is the difference between|difference between)\s+/, "")
+    .split(" ")
+    .filter((token) => !["a", "an", "the", "in", "on"].includes(token))
+    .sort()
+    .join(" ");
 }
 
 const supplementalAnswers = new Map([
@@ -158,8 +199,10 @@ const sourceEntries = [
   ...JSON.parse(fs.readFileSync(importedPath, "utf8")),
   ...handbookEntries,
   ...JSON.parse(fs.readFileSync(path.join(answerBankDirectory, "actual-interview-new-questions.json"), "utf8")),
+  ...parseNumberedInterviewRound(landingZoneRoundPath, "Actual Interview - Landing Zone, GKE and Coding Round - 2026-08-20"),
+  ...parseNumberedInterviewRound(kubernetesElkDynatraceRoundPath, "Actual Interview - Kubernetes, ELK and Dynatrace Round - 2026-08-20"),
 ];
-const placeholderAnswer = (answer) => /a strong answer should|tailor the response directly to|use the prompt details as acceptance criteria|start with the expected configuration, command, workflow|the direct answer is to define|i would explain the main mechanism/i.test(String(answer || ""));
+const placeholderAnswer = (answer) => /a strong answer should|use a truthful star answer|for this scenario, first confirm user impact|the practical answer is to state what changes|in an interview,? (?:i would|also) mention|so the answer sounds production-ready instead of theoretical|tailor (?:the|your) (?:response|answer)|answer (?:this|the question) (?:by|with)|you should (?:say|state|mention|explain|describe)|use the prompt details as acceptance criteria|start with the expected configuration, command, workflow|the direct answer is to define|i would explain the main mechanism/i.test(String(answer || ""));
 const answerBank = JSON.parse(fs.readFileSync(answerBankPath, "utf8"));
 const answersByQuestion = new Map(
   answerBank
