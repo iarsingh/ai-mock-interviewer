@@ -12,6 +12,23 @@ preparation. It runs against a local Node server and requires no cloud service i
 The app asks interview questions, reads them aloud, records or accepts typed answers, saves progress
 locally, and works fully offline using a deduplicated built-in bank of more than 9,500 questions with answers and question-type metadata.
 
+For a concise project walkthrough, see the [public case study](docs/PUBLIC_CASE_STUDY.md), including the user problem, architecture, demo flow, and limitations.
+
+The public project page is [https://iarsingh.github.io/ai-mock-interviewer/](https://iarsingh.github.io/ai-mock-interviewer/). It is the shareable entry point and the local run instructions. The interview app itself still runs on your computer; GitHub Pages does not host the Node server.
+
+## Answer accuracy
+
+Answers, explanations, code examples, and AI-generated feedback may be incorrect,
+incomplete, or outdated. Use them as practice material, not as verified technical
+advice or a validated assessment of interview readiness. Cross-check answers with
+official documentation for the relevant technology version, and validate commands
+and code in a safe test environment before using them.
+
+Automated checks cover dataset consistency and some answer-quality patterns; they
+do not establish that every answer is factually correct. If you find an error,
+[report a content correction](https://github.com/iarsingh/ai-mock-interviewer/issues/new?template=content_correction.yml)
+with the question and a reliable source. Do not include personal or confidential information.
+
 ## Contents
 
 - [Features](#features)
