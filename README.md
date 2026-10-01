@@ -32,6 +32,7 @@ with the question and a reliable source. Do not include personal or confidential
 ## Contents
 
 - [Features](#features)
+- [Pages](#pages)
 - [Tech Stack](#tech-stack)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
@@ -52,6 +53,7 @@ with the question and a reliable source. Do not include personal or confidential
 - [Developer Customization](#developer-customization)
 - [Chrome Extension](#chrome-extension)
 - [Troubleshooting](#troubleshooting)
+- [Content and privacy](#content-and-privacy)
 - [Publishing and contributions](#publishing-and-contributions)
 - [License](#license)
 
@@ -65,6 +67,20 @@ with the question and a reliable source. Do not include personal or confidential
 - Custom skills from the UI, so developers can add Java, React, AWS, Spring Boot, or any other topic locally.
 - Progress history saved in browser local storage.
 - Optional feedback from local Ollama, OpenAI, or Anthropic. Offline mode does not need an API key.
+- Sign-in for the skills dashboard and saved interview sessions. The admin report requires the `admin` role.
+- Interview Prep curriculum, a searchable question bank, and separate Data Science and AI Agent Engineer paths.
+
+## Pages
+
+These pages are served by the local Node app at `http://127.0.0.1:3030`. They are not available as a hosted interview app on GitHub Pages.
+
+| Page | Who can open it |
+| --- | --- |
+| `/`, `/signup.html`, `/signin.html`, `/contact.html` | Anyone |
+| `/interview-prep.html`, `/question-bank.html` | Anyone |
+| `/data-science-path.html`, `/ai-agent-engineer-path.html` | Anyone |
+| `/dashboard.html`, `/session.html` | Signed-in account |
+| `/admin.html` | Signed-in account with the `admin` role |
 
 ## Tech Stack
 
@@ -592,27 +608,24 @@ mock-interview-sets.md
 
 ```text
 ai-mock-interviewer/
-  public/
-    index.html
-    app.js
-    styles.css
-    mock-interview-sets.json
-    50-day-plan.json
-  server.js
-  package.json
-  package-lock.json
-  data/
-  scripts/
-  chrome-extension/
-  README.md
+  public/                 browser pages, styles, and question-bank JSON
+  src/                    interview services, SQLite access, and AI gateway
+  server.js               HTTP server and API routes
+  api/[...path].js        Vercel wrapper around the same server
+  scripts/                question-bank generation and release checks
+  data/                   examples and git-ignored local accounts
+  docs/                   case study, architecture notes, and the public page
+  chrome-extension/       local job-form autofill helper
+  tests/                  Node test suite
 ```
 
 Important files:
 
 - `server.js`: local Node.js server and API routes.
-- `public/index.html`: main app page.
+- `public/index.html`: public landing page.
+- `public/dashboard.html`: skills dashboard for launching interviews.
 - `public/app.js`: interview logic, audio, state, and question flow.
-- `public/styles.css`: UI styling.
+- `public/qa-dataset.json`: question bank served to the app.
 - `public/mock-interview-sets.json`: fixed mock interview rounds.
 - `public/50-day-plan.json`: daily practice plan.
 
@@ -634,7 +647,7 @@ Common files to edit:
 
 ## Chrome Extension
 
-The `chrome-extension/` folder contains a local job autofill helper.
+The `chrome-extension/` folder contains a local job autofill helper. It is not part of the hosted project page. Replace any built-in sample profile with your own data in the git-ignored `data/applicant-profile.json` file, and do not load the extension on a shared computer with a real résumé.
 
 Install it manually:
 
