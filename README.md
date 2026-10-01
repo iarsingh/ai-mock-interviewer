@@ -52,7 +52,7 @@ with the question and a reliable source. Do not include personal or confidential
 - [Developer Customization](#developer-customization)
 - [Chrome Extension](#chrome-extension)
 - [Troubleshooting](#troubleshooting)
-- [GitHub Publishing Notes](#github-publishing-notes)
+- [Publishing and contributions](#publishing-and-contributions)
 - [License](#license)
 
 ## Features
@@ -64,14 +64,14 @@ with the question and a reliable source. Do not include personal or confidential
 - Custom JD practice by pasting or uploading a job description.
 - Custom skills from the UI, so developers can add Java, React, AWS, Spring Boot, or any other topic locally.
 - Progress history saved in browser local storage.
-- Optional local Ollama support for stronger AI feedback.
+- Optional feedback from local Ollama, OpenAI, or Anthropic. Offline mode does not need an API key.
 
 ## Tech Stack
 
 - **Runtime**: Node.js (built-in `http` module, no framework)
 - **Frontend**: vanilla HTML/CSS/JS, browser Speech Synthesis + Speech Recognition APIs
 - **State**: browser `localStorage`; PostgreSQL for durable accounts (local JSON fallback)
-- **Optional AI**: local Ollama, or Anthropic Claude via `@anthropic-ai/sdk`
+- **Optional AI**: local Ollama, OpenAI, or Anthropic Claude via `@anthropic-ai/sdk`
 - **JD file parsing**: `pdf-parse`, `mammoth` (DOCX), `tesseract.js` (OCR)
 - **Browser extension**: Manifest V3 Chrome extension (`chrome-extension/`)
 
@@ -709,18 +709,13 @@ Publishing this source on GitHub does not deploy the Node backend. GitHub Pages 
 cannot run it. Public hosting also requires HTTPS, persistent storage, identity controls
 and deployment-specific verification; see [SECURITY.md](SECURITY.md).
 
-## GitHub Publishing Notes
+## Publishing and contributions
 
-Follow [the release workflow](docs/RELEASING.md) for clean-checkout validation and GitHub publication.
+The source repository is public. `main` is protected: open a pull request for every change, wait for the `verify` check, and keep the branch up to date with `main` before merging. Direct pushes, force-pushes, and deletion of `main` are blocked. See [CONTRIBUTING.md](CONTRIBUTING.md) and [the release workflow](docs/RELEASING.md).
 
-Before publishing a fork, review the entire working tree and Git history for secrets and personal data. Never commit
-`.env`, `data/applicant-profile.json`, local account/contact files, SQLite databases, logs, API credentials, session
-secrets, résumés, or OAuth tokens. The repository includes safe examples and ignore rules, but those do not remove
-data that was committed previously.
+The public page at [https://iarsingh.github.io/ai-mock-interviewer/](https://iarsingh.github.io/ai-mock-interviewer/) explains how to run the app. It does not host the Node server. A hosted instance still needs HTTPS, PostgreSQL, a unique `SESSION_SECRET`, and persistent storage for interview sessions.
 
-If sensitive data has ever been committed, removing it in a later commit is insufficient. Rotate exposed credentials
-and use a history-rewriting tool such as `git filter-repo` before making the repository public, then coordinate the
-forced update with every collaborator.
+Never commit `.env`, `data/applicant-profile.json`, local account or contact files, SQLite databases, logs, API credentials, session secrets, résumés, or OAuth tokens. The repository includes safe examples and ignore rules. Those rules do not remove data that was committed earlier. Before publishing a fork, review the working tree and Git history. If private data was committed, remove it from history before the fork is public and coordinate that update with collaborators.
 
 ## License
 
