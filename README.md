@@ -7,7 +7,18 @@
 
 Use the architecture document for the component diagram, implementation boundaries, and verification entry points. The interview guide includes source-backed answers and project walkthroughs.
 
-### Implementation map
+### Main application components
+
+| Component | Responsibility |
+| --- | --- |
+| [server.js](server.js) | Node HTTP server, application wiring, authentication and configuration |
+| [Interview routes](src/routes/interview.routes.js) | Versioned interview HTTP interface and error responses |
+| [Interview service](src/services/interview.service.js) | Interview lifecycle and ownership checks |
+| [Interview repository](src/repositories/interview.repository.js) | Interview persistence operations |
+| [SQLite factory](src/database/sqlite.js) | Interview-session database initialization |
+| [AI gateway](src/ai/ai.gateway.js) | Validated generation and deterministic fallback |
+
+### Supporting implementation map
 
 | Component | Responsibility |
 | --- | --- |

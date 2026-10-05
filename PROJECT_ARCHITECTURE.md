@@ -8,7 +8,41 @@ Voice-led AI mock interview practice for DevOps, SRE, Cloud, Platform Engineerin
 
 This document describes files and symbols in this checkout. Deployment templates and statements in the original overview are distinguished from a verified running environment.
 
-## Component diagram
+## Application runtime architecture
+
+The main application runs through [server.js](server.js), a Node HTTP server. The Python scripts later in this document are document/media export helpers, rather than the application backend.
+
+```mermaid
+flowchart LR
+    Browser["Browser: public pages"] --> HTTP["server.js: Node HTTP server"]
+    HTTP --> Routes["src/routes/interview.routes.js"]
+    Routes --> Service["src/services/interview.service.js"]
+    Service --> Repository["src/repositories/interview.repository.js"]
+    Repository --> SQLite["src/database/sqlite.js"]
+    Service --> Gateway["src/ai/ai.gateway.js"]
+    Gateway --> Provider["Configured generation callback"]
+    Gateway --> Fallback["Deterministic question bank fallback"]
+    HTTP --> Auth["Accounts, signed cookies and password hashing"]
+    Auth --> Store["PostgreSQL when configured; local JSON fallback"]
+```
+
+The wiring is in `getInterviewRoutes` in [server.js](server.js). Interview-session storage uses the SQLite repository; account/authentication storage separately selects PostgreSQL or local JSON. These are distinct persistence paths.
+
+### Interview request flow
+
+1. [The route factory](src/routes/interview.routes.js) matches `/api/v1/interviews` and interview actions, reads the current user, and passes the request to the service.
+2. [InterviewService](src/services/interview.service.js) owns the lifecycle and calls the repository and AI gateway.
+3. [InterviewRepository](src/repositories/interview.repository.js) owns database access through [the SQLite factory](src/database/sqlite.js).
+4. [AiGateway](src/ai/ai.gateway.js) accepts a generated question only when validation passes; provider failures or invalid results fall back to the deterministic bank.
+5. The route layer returns a request ID and translates service errors to HTTP responses.
+
+### Configuration and failure boundaries
+
+[server.js](server.js) reads `PORT`, `HOST`, `DATABASE_URL`, `SESSION_SECRET`, `SQLITE_PATH`, `LLM_PROVIDER`, and `OFFLINE_ONLY`. Its production startup checks require an adequate session secret and configured account persistence unless the explicit file-storage override is enabled. Generated-question provider callbacks are configurable; the fallback path exists independently of provider availability.
+
+Use `npm test` and the scripts in [package.json](package.json) for verification. The `verify` check is required by the repository rules before a default-branch update can merge.
+
+## Python helper import diagram
 
 ```mermaid
 flowchart LR
@@ -21,25 +55,8 @@ flowchart LR
     M6["scripts/generate-rss-feed.py"]
     M7["scripts/organize-original-audio.py"]
     M8["scripts/upload-youtube-podcast-videos.py"]
-    M0 -->|imports| M1
-    M0 -->|imports| M3
     M0 -->|imports| M4
-    M0 -->|imports| M8
-    M1 -->|imports| M0
-    M1 -->|imports| M3
     M1 -->|imports| M4
-    M1 -->|imports| M8
-    M2 -->|imports| M0
-    M2 -->|imports| M1
-    M2 -->|imports| M3
-    M2 -->|imports| M8
-    M5 -->|imports| M3
-    M5 -->|imports| M8
-    M6 -->|imports| M3
-    M6 -->|imports| M8
-    M7 -->|imports| M3
-    M7 -->|imports| M8
-    M8 -->|imports| M3
 ```
 
 For Python repositories, arrows show resolved local imports, not network calls or deployment order. Otherwise the diagram is a repository component map; containment arrows do not assert runtime integration.

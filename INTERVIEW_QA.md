@@ -148,3 +148,19 @@ Trace these definitions and imports to explain the module boundary. Relative imp
 [`src/routes/interview.routes.js`](src/routes/interview.routes.js) defines `createInterviewRoutes`, `errorResponse`, `handleInterviewRoutes`.
 
 Trace these definitions and imports to explain the module boundary. Relative imports identify project code; package imports should be checked against the nearest manifest.
+
+## 16. How does the Node interview API handle a request?
+
+[server.js](server.js) wires the route factory to `InterviewService`, `InterviewRepository`, the SQLite factory, and `AiGateway`. [interview.routes.js](src/routes/interview.routes.js) reads the user ID, matches versioned interview paths, calls the service, and returns a request ID with either a result or structured error. The Python export scripts are supporting tools, not this request-serving backend.
+
+## 17. What happens when question generation fails or returns an irrelevant result?
+
+[AiGateway.generateQuestion](src/ai/ai.gateway.js) attempts the injected generation callback, checks for a question and validates it against allowed topics. A thrown provider error is caught. A failed validation or provider failure reaches the fallback callback, and the returned question receives a `question-bank` source when the fallback has not supplied another source.
+
+## 18. Why should you distinguish the two persistence paths?
+
+The interview route wiring creates SQLite through [src/database/sqlite.js](src/database/sqlite.js) and supplies it to [InterviewRepository](src/repositories/interview.repository.js). Separately, [server.js](server.js) selects PostgreSQL for account data when `DATABASE_URL` is set, with a local JSON fallback otherwise. Calling the entire application either SQLite-only or PostgreSQL-only would miss that separation.
+
+## 19. Which authentication and startup decisions are visible in the server?
+
+[server.js](server.js) uses scrypt password hashes and signed cookie tokens. Production startup rejects a short or missing `SESSION_SECRET` and requires configured account persistence unless an explicit ephemeral file-storage override is enabled. I would demonstrate the startup checks and cookie/token helpers before claiming broader security properties.
