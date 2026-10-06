@@ -795,3 +795,11 @@ This project is available under the [MIT License](LICENSE). See [CONTRIBUTING.md
 
 Maintained by [Akhilesh Ranjan Singh](https://github.com/iarsingh). For project questions, contact
 [akhileshranjan.ks@gmail.com](mailto:akhileshranjan.ks@gmail.com) or open a GitHub issue.
+
+## Documentation checks
+
+Project guides and local source links are checked on pushes and pull requests. Run locally:
+
+```bash
+python3 .github/scripts/validate_project_docs.py
+```
