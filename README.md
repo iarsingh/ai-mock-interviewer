@@ -1,5 +1,12 @@
 # AI Mock Interviewer
 
+## Overview
+
+A local-first, voice-led mock interview simulator for DevOps, SRE, Cloud, Platform Engineering and MLOps practice. It asks questions, reads them aloud, accepts recorded or typed answers and saves progress locally. In offline mode it needs no cloud service and draws on a deduplicated built-in bank of more than 9,500 questions with answers and question-type metadata; it can also run against a local Ollama model or an API key, and its AI gateway validates generated output and falls back to deterministic responses.
+
+- **Built with:** JavaScript, Node.js, SQLite, Ollama, Python document scripts, GitHub Actions
+- **Scope:** Practice tool that runs on your own computer (GitHub Pages only hosts the project page); answers and AI feedback may be wrong and are not a validated readiness assessment.
+
 <!-- project-guide:start -->
 ## Project guide
 
