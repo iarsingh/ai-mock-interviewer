@@ -1,20 +1,101 @@
 # AI Mock Interviewer
 
+## Overview
+
+A local-first, voice-led mock interview simulator for DevOps, SRE, Cloud, Platform Engineering and MLOps practice. It asks questions, reads them aloud, accepts recorded or typed answers and saves progress locally. In offline mode it needs no cloud service and draws on a deduplicated built-in bank of more than 9,500 questions with answers and question-type metadata; it can also run against a local Ollama model or an API key, and its AI gateway validates generated output and falls back to deterministic responses.
+
+- **Built with:** JavaScript, Node.js, SQLite, Ollama, Python document scripts, GitHub Actions
+- **Scope:** Practice tool that runs on your own computer (GitHub Pages only hosts the project page); answers and AI feedback may be wrong and are not a validated readiness assessment.
+
+<!-- project-guide:start -->
+## Project guide
+
+[Project architecture](PROJECT_ARCHITECTURE.md) · [Interview questions and answers](INTERVIEW_QA.md)
+
+Use the architecture document for the component diagram, implementation boundaries, and verification entry points. The interview guide includes source-backed answers and project walkthroughs.
+
+### Main application components
+
+| Component | Responsibility |
+| --- | --- |
+| [server.js](server.js) | Node HTTP server, application wiring, authentication and configuration |
+| [Interview routes](src/routes/interview.routes.js) | Versioned interview HTTP interface and error responses |
+| [Interview service](src/services/interview.service.js) | Interview lifecycle and ownership checks |
+| [Interview repository](src/repositories/interview.repository.js) | Interview persistence operations |
+| [SQLite factory](src/database/sqlite.js) | Interview-session database initialization |
+| [AI gateway](src/ai/ai.gateway.js) | Validated generation and deterministic fallback |
+
+### Supporting implementation map
+
+| Component | Responsibility |
+| --- | --- |
+| [`scripts/build-interview-prep-document.py`](scripts/build-interview-prep-document.py) | Functions: `load_curriculum`, `set_cell_shading`, `set_cell_margins`, `set_table_geometry`, `set_repeat_header`, `style_run`, `write_cell` |
+| [`scripts/build-docx.py`](scripts/build-docx.py) | Functions: `classify_question`, `build_example`, `add_heading`, `add_qa` |
+| [`scripts/build-actual-interview-docx.py`](scripts/build-actual-interview-docx.py) | Functions: `set_font`, `shade_paragraph`, `set_cell_margins`, `add_page_field`, `configure_styles`, `parse_source` |
+| [`scripts/generate-podcast-audio.py`](scripts/generate-podcast-audio.py) | Functions: `classify`, `clean_for_speech`, `sanitize_answer`, `est_seconds`, `build_script`, `_cycle_transitions`, `render` |
+| [`package.json`](package.json) | Implementation or supporting configuration |
+| [`server.js`](server.js) | Implementation or supporting configuration |
+| [`api/[...path].js`](api/%5B...path%5D.js) | Implementation or supporting configuration |
+| [`chrome-extension/content.js`](chrome-extension/content.js) | Implementation or supporting configuration |
+| [`chrome-extension/popup.js`](chrome-extension/popup.js) | Implementation or supporting configuration |
+| [`public/admin.js`](public/admin.js) | Implementation or supporting configuration |
+| [`public/ai-agent-engineer-path.js`](public/ai-agent-engineer-path.js) | Implementation or supporting configuration |
+| [`public/app.js`](public/app.js) | Implementation or supporting configuration |
+| [`public/auth-client.js`](public/auth-client.js) | Authentication or access-control implementation |
+| [`Dockerfile`](Dockerfile) | Container build/service configuration |
+| [`tests/interview-prep.test.js`](tests/interview-prep.test.js) | Executable checks and regression examples |
+| [`tests/interview.service.test.js`](tests/interview.service.test.js) | Executable checks and regression examples |
+| [`tests/public-page.test.js`](tests/public-page.test.js) | Executable checks and regression examples |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | GitHub Actions job definitions |
+| [`.github/pull_request_template.md`](.github/pull_request_template.md) | Project explanations or operating notes |
+| [`30-day-interview-plan.md`](30-day-interview-plan.md) | Project explanations or operating notes |
+| [`50-day-interview-plan.md`](50-day-interview-plan.md) | Project explanations or operating notes |
+
+### Local setup and verification
+
+From the repository root (the commands follow the checked-in manifests):
+
+```bash
+npm install
+npm test
+npm run start
+```
+
+<!-- project-guide:end -->
+
 [![CI](https://github.com/iarsingh/ai-mock-interviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/iarsingh/ai-mock-interviewer/actions/workflows/ci.yml) · [MIT licensed](LICENSE) · [Contribute](CONTRIBUTING.md)
 
 <!-- repository-summary -->
-Voice-led AI mock interview practice for DevOps, SRE, Cloud, Platform Engineering, MLOps, and software engineering roles.
+Voice-led AI mock interview practice for DevOps, SRE, Cloud, Platform Engineering, MLOps, Forward Deployed Engineering, and software engineering roles.
 <!-- /repository-summary -->
 
-A local-first, voice-led mock interview simulator for DevOps, SRE, Cloud, Platform Engineering, and MLOps
+A local-first, voice-led mock interview simulator for DevOps, SRE, Cloud, Platform Engineering, MLOps, and Forward Deployed Engineering
 preparation. It runs against a local Node server and requires no cloud service in offline mode.
 
 The app asks interview questions, reads them aloud, records or accepts typed answers, saves progress
 locally, and works fully offline using a deduplicated built-in bank of more than 9,500 questions with answers and question-type metadata.
 
+For a concise project walkthrough, see the [public case study](docs/PUBLIC_CASE_STUDY.md), including the user problem, architecture, demo flow, and limitations.
+
+The public project page is [https://iarsingh.github.io/ai-mock-interviewer/](https://iarsingh.github.io/ai-mock-interviewer/). It is the shareable entry point and the local run instructions. The interview app itself still runs on your computer; GitHub Pages does not host the Node server.
+
+## Answer accuracy
+
+Answers, explanations, code examples, and AI-generated feedback may be incorrect,
+incomplete, or outdated. Use them as practice material, not as verified technical
+advice or a validated assessment of interview readiness. Cross-check answers with
+official documentation for the relevant technology version, and validate commands
+and code in a safe test environment before using them.
+
+Automated checks cover dataset consistency and some answer-quality patterns; they
+do not establish that every answer is factually correct. If you find an error,
+[report a content correction](https://github.com/iarsingh/ai-mock-interviewer/issues/new?template=content_correction.yml)
+with the question and a reliable source. Do not include personal or confidential information.
+
 ## Contents
 
 - [Features](#features)
+- [Pages](#pages)
 - [Tech Stack](#tech-stack)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
@@ -35,26 +116,41 @@ locally, and works fully offline using a deduplicated built-in bank of more than
 - [Developer Customization](#developer-customization)
 - [Chrome Extension](#chrome-extension)
 - [Troubleshooting](#troubleshooting)
-- [GitHub Publishing Notes](#github-publishing-notes)
+- [Content and privacy](#content-and-privacy)
+- [Publishing and contributions](#publishing-and-contributions)
 - [License](#license)
 
 ## Features
 
 - Voice-led mock interview flow with question audio and answer transcript.
 - Offline mode with built-in mock questions and local template feedback.
-- Practice by topic: Kubernetes/GKE, Docker, GCP, Terraform, Ansible, Python, FastAPI, Go, SRE, MLOps, LLMOps, CI/CD, observability, security, networking, Linux, platform engineering, behavioral, and basics.
+- Practice by topic: Kubernetes/GKE, Docker, GCP, Terraform, Ansible, Python, FastAPI, Go, SRE, MLOps, LLMOps, Forward Deployed Engineering, CI/CD, observability, security, networking, Linux, platform engineering, behavioral, and basics.
 - 50-day practice plan and fixed mock interview sets.
 - Custom JD practice by pasting or uploading a job description.
 - Custom skills from the UI, so developers can add Java, React, AWS, Spring Boot, or any other topic locally.
 - Progress history saved in browser local storage.
-- Optional local Ollama support for stronger AI feedback.
+- Optional feedback from local Ollama, OpenAI, or Anthropic. Offline mode does not need an API key.
+- Sign-in for the skills dashboard and saved interview sessions. The admin report requires the `admin` role.
+- Interview Prep curriculum, a searchable question bank, and separate Data Science and AI Agent Engineer paths.
+
+## Pages
+
+These pages are served by the local Node app at `http://127.0.0.1:3030`. They are not available as a hosted interview app on GitHub Pages.
+
+| Page | Who can open it |
+| --- | --- |
+| `/`, `/signup.html`, `/signin.html`, `/contact.html` | Anyone |
+| `/interview-prep.html`, `/question-bank.html` | Anyone |
+| `/data-science-path.html`, `/ai-agent-engineer-path.html` | Anyone |
+| `/dashboard.html`, `/session.html` | Signed-in account |
+| `/admin.html` | Signed-in account with the `admin` role |
 
 ## Tech Stack
 
 - **Runtime**: Node.js (built-in `http` module, no framework)
 - **Frontend**: vanilla HTML/CSS/JS, browser Speech Synthesis + Speech Recognition APIs
 - **State**: browser `localStorage`; PostgreSQL for durable accounts (local JSON fallback)
-- **Optional AI**: local Ollama, or Anthropic Claude via `@anthropic-ai/sdk`
+- **Optional AI**: local Ollama, OpenAI, or Anthropic Claude via `@anthropic-ai/sdk`
 - **JD file parsing**: `pdf-parse`, `mammoth` (DOCX), `tesseract.js` (OCR)
 - **Browser extension**: Manifest V3 Chrome extension (`chrome-extension/`)
 
@@ -575,27 +671,24 @@ mock-interview-sets.md
 
 ```text
 ai-mock-interviewer/
-  public/
-    index.html
-    app.js
-    styles.css
-    mock-interview-sets.json
-    50-day-plan.json
-  server.js
-  package.json
-  package-lock.json
-  data/
-  scripts/
-  chrome-extension/
-  README.md
+  public/                 browser pages, styles, and question-bank JSON
+  src/                    interview services, SQLite access, and AI gateway
+  server.js               HTTP server and API routes
+  api/[...path].js        Vercel wrapper around the same server
+  scripts/                question-bank generation and release checks
+  data/                   examples and git-ignored local accounts
+  docs/                   case study, architecture notes, and the public page
+  chrome-extension/       local job-form autofill helper
+  tests/                  Node test suite
 ```
 
 Important files:
 
 - `server.js`: local Node.js server and API routes.
-- `public/index.html`: main app page.
+- `public/index.html`: public landing page.
+- `public/dashboard.html`: skills dashboard for launching interviews.
 - `public/app.js`: interview logic, audio, state, and question flow.
-- `public/styles.css`: UI styling.
+- `public/qa-dataset.json`: question bank served to the app.
 - `public/mock-interview-sets.json`: fixed mock interview rounds.
 - `public/50-day-plan.json`: daily practice plan.
 
@@ -617,7 +710,7 @@ Common files to edit:
 
 ## Chrome Extension
 
-The `chrome-extension/` folder contains a local job autofill helper.
+The `chrome-extension/` folder contains a local job autofill helper. It is not part of the hosted project page. Replace any built-in sample profile with your own data in the git-ignored `data/applicant-profile.json` file, and do not load the extension on a shared computer with a real résumé.
 
 Install it manually:
 
@@ -692,18 +785,13 @@ Publishing this source on GitHub does not deploy the Node backend. GitHub Pages 
 cannot run it. Public hosting also requires HTTPS, persistent storage, identity controls
 and deployment-specific verification; see [SECURITY.md](SECURITY.md).
 
-## GitHub Publishing Notes
+## Publishing and contributions
 
-Follow [the release workflow](docs/RELEASING.md) for clean-checkout validation and GitHub publication.
+The source repository is public. `main` is protected: open a pull request for every change, wait for the `verify` check, and keep the branch up to date with `main` before merging. Direct pushes, force-pushes, and deletion of `main` are blocked. See [CONTRIBUTING.md](CONTRIBUTING.md) and [the release workflow](docs/RELEASING.md).
 
-Before publishing a fork, review the entire working tree and Git history for secrets and personal data. Never commit
-`.env`, `data/applicant-profile.json`, local account/contact files, SQLite databases, logs, API credentials, session
-secrets, résumés, or OAuth tokens. The repository includes safe examples and ignore rules, but those do not remove
-data that was committed previously.
+The public page at [https://iarsingh.github.io/ai-mock-interviewer/](https://iarsingh.github.io/ai-mock-interviewer/) explains how to run the app. It does not host the Node server. A hosted instance still needs HTTPS, PostgreSQL, a unique `SESSION_SECRET`, and persistent storage for interview sessions.
 
-If sensitive data has ever been committed, removing it in a later commit is insufficient. Rotate exposed credentials
-and use a history-rewriting tool such as `git filter-repo` before making the repository public, then coordinate the
-forced update with every collaborator.
+Never commit `.env`, `data/applicant-profile.json`, local account or contact files, SQLite databases, logs, API credentials, session secrets, résumés, or OAuth tokens. The repository includes safe examples and ignore rules. Those rules do not remove data that was committed earlier. Before publishing a fork, review the working tree and Git history. If private data was committed, remove it from history before the fork is public and coordinate that update with collaborators.
 
 ## License
 
@@ -714,3 +802,11 @@ This project is available under the [MIT License](LICENSE). See [CONTRIBUTING.md
 
 Maintained by [Akhilesh Ranjan Singh](https://github.com/iarsingh). For project questions, contact
 [akhileshranjan.ks@gmail.com](mailto:akhileshranjan.ks@gmail.com) or open a GitHub issue.
+
+## Documentation checks
+
+Project guides and local source links are checked on pushes and pull requests. Run locally:
+
+```bash
+python3 .github/scripts/validate_project_docs.py
+```
