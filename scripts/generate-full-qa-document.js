@@ -282,7 +282,8 @@ const ROLE_BANK_FILES = [
   "100-react-typescript-frontend.json",
   "101-fde-behavioural-star.json",
   "102-communication-skills.json",
-  "103-senior-staff-growth.json"
+  "103-senior-staff-growth.json",
+  "104-java-fullstack-fde.json"
 ];
 
 function loadRoleBankQuestions() {
