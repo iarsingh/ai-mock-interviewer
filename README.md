@@ -560,6 +560,14 @@ escape hatch.
 
 For a fully manual flow, switch to `Mock interview`.
 
+### Practice log
+
+Every answer that gets feedback is saved automatically, together with the question,
+the feedback and the score, to `data/answer-log/YYYY-MM-DD.md` (readable) and
+`data/answer-log/YYYY-MM-DD.jsonl` (one JSON record per answer). The folder is
+gitignored. Logging is on by default locally and off when `NODE_ENV=production`;
+set `ANSWER_LOG=off` to disable it or `ANSWER_LOG_DIR` to write somewhere else.
+
 ## Audio Notes
 
 Question audio uses browser text-to-speech.
