@@ -13530,6 +13530,806 @@
     "answer": "Situation: I moved from a platform team to a new internal AI team because I wanted to work on LLM applications, but within a few months the team was reorganised and my role became mostly maintaining legacy data pipelines. Task: decide whether to leave, return, or make the role work. Action: rather than reacting quickly, I talked to my manager about what the organisation needed, and found that the pipelines fed the retrieval data for an upcoming RAG assistant. I proposed owning the ingestion and evaluation layer, adding data quality checks and an evaluation set that the assistant team lacked. I also kept one public lab going on LLM serving. Result: within two quarters I was the go-to engineer for retrieval quality, and that work became my strongest interview story for AI roles. Lesson: when a move disappoints, look for the adjacent problem that connects your current work to your goal."
   },
   {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Conceptual",
+    "question": "Java FDE: How does HashMap store and look up entries internally, and what happens when many keys collide or the map grows?",
+    "answer": "HashMap is an array of buckets: it spreads the key's hashCode with h ^ (h >>> 16), picks the bucket with (n - 1) & hash, and then walks that bucket comparing hashes and calling equals to find the key. The table size n is always a power of two. When the number of entries exceeds capacity times the load factor (0.75 by default), the table doubles and entries are redistributed, which costs O(n) for that one put but keeps puts amortised O(1). Colliding keys share a bucket as a linked list; since Java 8 a bucket with 8 or more nodes is converted to a red-black tree once the table has at least 64 slots, so worst-case lookup becomes O(log n) instead of O(n). Practical consequences: pre-size with HashMap.newHashMap(expected) in Java 19+ when you know the size, never mutate a field used in hashCode while the object is a key, and never share a HashMap across threads without synchronisation; use ConcurrentHashMap instead."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Coding",
+    "question": "Java FDE: Implement equals and hashCode for an OrderLine class identified by sku and quantity, and explain the contract you must not break.",
+    "answer": "Equal objects must return the same hashCode, equals must be reflexive, symmetric, transitive and consistent, and x.equals(null) must be false; breaking the hashCode half makes HashMap and HashSet lose objects.\n\npublic final class OrderLine {\n    private final String sku;\n    private final int quantity;\n    public OrderLine(String sku, int quantity) {\n        this.sku = sku;\n        this.quantity = quantity;\n    }\n    @Override\n    public boolean equals(Object o) {\n        if (this == o) return true;\n        if (!(o instanceof OrderLine other)) return false;\n        return quantity == other.quantity && Objects.equals(sku, other.sku);\n    }\n    @Override\n    public int hashCode() {\n        return Objects.hash(sku, quantity);\n    }\n}\n\nBoth methods use exactly the same fields, which keeps them consistent. The instanceof pattern is safe because the class is final; in a non-final hierarchy, comparing getClass() avoids symmetry bugs between parent and subclass. Both checks are O(1) time and space for these fields. The classic bug is overriding equals only: two equal lines then hash to different buckets, so set.contains returns false and duplicates pile up. Fields should be immutable, otherwise a key mutated after insertion becomes unreachable. In Java 16+ a record OrderLine(String sku, int quantity) generates both methods correctly, which is what I would use for a value type. For JPA entities, base equality on a business key or a non-null id, not on lazy associations."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Coding",
+    "question": "Java FDE: Model an immutable Invoice with an id, a list of line amounts and a currency using a Java record. How do you make it genuinely immutable and validated?",
+    "answer": "A record gives final fields, a canonical constructor, accessors, equals, hashCode and toString, but it is only shallowly immutable, so validate and defensively copy in a compact constructor.\n\npublic record Invoice(String id, List<BigDecimal> amounts, Currency currency) {\n    public Invoice {\n        Objects.requireNonNull(id, \"id\");\n        Objects.requireNonNull(currency, \"currency\");\n        amounts = List.copyOf(amounts);\n        if (amounts.stream().anyMatch(a -> a.signum() < 0)) {\n            throw new IllegalArgumentException(\"negative amount\");\n        }\n    }\n    public BigDecimal total() {\n        return amounts.stream().reduce(BigDecimal.ZERO, BigDecimal::add);\n    }\n}\n\nList.copyOf returns an unmodifiable list and rejects null elements, so a caller who later mutates their original ArrayList cannot change the invoice, and calling add on amounts() throws UnsupportedOperationException. Construction is O(n) time and O(n) space for the copy; total is O(n) time. BigDecimal is itself immutable, which is why a shallow copy is enough; a list of mutable objects would need deep copies. Immutability makes the object safe to share across threads and to cache, and Jackson deserialises records through the canonical constructor since version 2.12. Pitfall: records cannot extend classes and are a poor fit for JPA entities, which need a no-arg constructor and mutable state, so use them for DTOs, events and value objects."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a generic method that copies every element from one list into another so that it accepts a List<Integer> source and a List<Number> destination. Explain the wildcards you chose.",
+    "answer": "Apply producer-extends, consumer-super: the source produces T values so it is List<? extends T>, and the destination consumes them so it is List<? super T>.\n\npublic static <T> void copyAll(List<? extends T> src, List<? super T> dst) {\n    for (T item : src) {\n        dst.add(item);\n    }\n}\n\nList<Integer> ids = List.of(1, 2, 3);\nList<Number> sink = new ArrayList<>();\ncopyAll(ids, sink);\n\nWith plain List<T> on both sides the call fails, because generics are invariant: List<Integer> is not a List<Number>, otherwise you could add a Double to a list of integers. From a List<? extends Number> you can read Number but can only add null; into a List<? super Integer> you can add Integer but only read Object. Time is O(n) and extra space O(1) beyond growth of the destination. Generics are erased at runtime, so you cannot write new T[]; pass a Class<T> or an IntFunction<T[]> when you need the runtime type. The JDK follows the same rule in Collections.copy and in sort methods that take Comparator<? super T>. Guideline for public APIs: use wildcards in parameters to make callers' lives easy, but never in return types, because that pushes wildcard handling onto every caller."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Comparison",
+    "question": "Java FDE: When do you choose the Stream API over a plain for loop in production Java code, and when is a loop the better option?",
+    "answer": "Choose streams for declarative transformations such as filter, map, group and collect, and plain loops when you need early exits with complex state, checked exceptions, or the tightest hot-path performance. Streams read well for pipelines like orders.stream().filter(Order::isPaid).collect(Collectors.groupingBy(Order::customerId)), and Stream.toList() in Java 16+ returns an unmodifiable list. Loops win when the body mutates several local variables, throws a checked IOException, or needs break and continue across nested structures; lambdas cannot assign to non-final locals and wrapping checked exceptions adds noise. Performance is usually within noise for I/O-bound services, but streams add allocation and lambda overhead in tight numeric code, where IntStream or a primitive loop avoids boxing. Avoid parallelStream in request-handling code: it runs on the shared ForkJoinPool.commonPool, so one heavy request can starve others, and it only pays off for large, CPU-bound, easily split data. Pitfalls include side effects inside map or peek and reusing a consumed stream, which throws IllegalStateException. Verify performance claims with JMH rather than intuition."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Conceptual",
+    "question": "Java FDE: What is Optional for, and what are the most common ways developers misuse it?",
+    "answer": "Optional is meant as a return type that signals a value may be absent, such as repository.findById(id), not as a general replacement for null. Use it by chaining: findById(id).map(UserDto::from).orElseThrow(() -> new NotFoundException(id)). Common misuse: calling get() without checking, which just swaps a NullPointerException for NoSuchElementException; using Optional for fields, method parameters or collection elements, which adds allocation and is not Serializable; returning null from a method declared to return Optional; and calling Optional.of(value) when value can be null, which throws immediately, so use Optional.ofNullable. A subtler one is orElse(createDefault()), which evaluates createDefault even when the value is present; orElseGet(this::createDefault) is lazy and matters when the default hits a database. For collections, return an empty list rather than Optional<List>. In code review I look for isPresent() followed by get(), which is usually better written as ifPresent, map or orElseThrow."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Comparison",
+    "question": "Java FDE: What is the difference between checked and unchecked exceptions, and how does that choice affect a Spring Boot service?",
+    "answer": "Checked exceptions extend Exception but not RuntimeException and must be declared or caught, while unchecked exceptions extend RuntimeException or Error and need no declaration. Checked ones like IOException model recoverable conditions the caller is expected to handle; unchecked ones like IllegalArgumentException usually signal programming errors or violated preconditions. Modern Spring code mostly uses unchecked exceptions: Spring translates JDBC SQLException into DataAccessException, and a custom OrderNotFoundException extending RuntimeException can be mapped to 404 with @RestControllerAdvice and @ExceptionHandler. A key production gotcha is that @Transactional rolls back only on RuntimeException and Error by default; a checked exception lets the transaction commit unless you set rollbackFor = Exception.class. When wrapping, always pass the cause, as in throw new PaymentException(\"charge failed\", e), so the original stack trace survives. Pitfalls: catching Exception and logging nothing, swallowing InterruptedException without calling Thread.currentThread().interrupt(), and using exceptions for normal control flow in hot paths."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Modern Java 21",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: Using Java 21 sealed interfaces, records and pattern matching for switch, model payment results (Approved, Declined, PendingReview) and map each to an HTTP status. Why is this better than an enum plus nullable fields?",
+    "answer": "A sealed interface with record implementations lets each outcome carry only its own data, and a switch over it is checked for exhaustiveness by the compiler, so adding a new outcome breaks the build instead of production.\n\npublic sealed interface PaymentResult\n        permits Approved, Declined, PendingReview {}\npublic record Approved(String authCode) implements PaymentResult {}\npublic record Declined(String reason, boolean retryable) implements PaymentResult {}\npublic record PendingReview(Duration eta) implements PaymentResult {}\n\nstatic int httpStatus(PaymentResult r) {\n    return switch (r) {\n        case Approved a -> 201;\n        case Declined(String reason, boolean retryable) when retryable -> 503;\n        case Declined d -> 402;\n        case PendingReview p -> 202;\n    };\n}\n\nThere is no default branch, so if someone adds a Refunded record to the permits list, every switch like this fails to compile until it is handled. Record patterns deconstruct components inline and the when guard refines a case; order matters, because the compiler rejects a case that is dominated by an earlier unguarded one. Dispatch is O(1) per call with no extra space. Compared with an enum plus nullable authCode and reason fields, illegal states such as an approved result carrying a decline reason cannot be represented. A null argument throws NullPointerException unless you add case null. For REST payloads, Jackson needs @JsonTypeInfo and @JsonSubTypes to serialise the hierarchy polymorphically."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a method that normalises a sentence by trimming it, collapsing repeated whitespace and reversing the word order. Why should you avoid building the result with += in a loop?",
+    "answer": "Split on a whitespace regex after strip, then append the words in reverse to a StringBuilder; strings are immutable, so += inside a loop copies the growing string every iteration and turns linear work quadratic.\n\npublic static String reverseWords(String input) {\n    if (input == null || input.isBlank()) return \"\";\n    String[] words = input.strip().split(\"\\\\s+\");\n    StringBuilder sb = new StringBuilder(input.length());\n    for (int i = words.length - 1; i >= 0; i--) {\n        sb.append(words[i]);\n        if (i > 0) sb.append(' ');\n    }\n    return sb.toString();\n}\n\nTime is O(n) in the input length and space O(n) for the array and builder. strip is Unicode-aware, unlike trim, which only removes characters up to U+0020, and isBlank exists since Java 11. Since Java 9, javac compiles a single a + b + c expression into an efficient invokedynamic call, so concatenation within one expression is fine; the problem is repeated concatenation across loop iterations. Related String rules: compare with equals, never ==, because == checks reference identity and only works by accident for interned literals; use toLowerCase(Locale.ROOT) to avoid locale bugs such as the Turkish dotless i; and pass StandardCharsets.UTF_8 explicitly when converting bytes to text. String.split with a regex compiles the pattern on every call, so precompile a Pattern in hot paths."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Core Java",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A Spring Boot service intermittently throws ConcurrentModificationException in production while cleaning expired sessions from a list. How do you diagnose and fix it?",
+    "answer": "ConcurrentModificationException means a collection was structurally modified while an iterator was walking it, either by the same thread inside a for-each loop or by another thread touching a shared, non-thread-safe collection. First read the stack trace: if it comes from ArrayList$Itr.checkForComodification inside your own loop, the bug is single-threaded and the fix is sessions.removeIf(Session::isExpired) or an explicit Iterator with iterator.remove(). If it only appears under load, suspect a shared ArrayList or HashMap in a singleton Spring bean that a @Scheduled cleanup job iterates while request threads add to it. Fix that with a concurrent structure: a ConcurrentHashMap keyed by session id, whose iterators are weakly consistent and never throw, or CopyOnWriteArrayList if reads vastly outnumber writes. Collections.synchronizedList alone is not enough, because iteration still needs a manual synchronized block. The fail-fast check is best-effort, so the absence of exceptions proves nothing; unsynchronised writes can also silently lose entries. Verify with a concurrent test that runs adds and cleanup together on an ExecutorService."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Java Concurrency",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: An order details endpoint must call a pricing service and an inventory service in parallel, with a 2-second timeout and a fallback for inventory. Implement it with CompletableFuture and explain your executor choice.",
+    "answer": "Start both calls with supplyAsync on a dedicated executor, apply a timeout to each, and combine with thenCombine so total latency is roughly the slower call rather than the sum.\n\nprivate final ExecutorService io = Executors.newVirtualThreadPerTaskExecutor();\n\npublic OrderView details(String orderId) {\n    CompletableFuture<Price> price = CompletableFuture\n        .supplyAsync(() -> pricing.get(orderId), io)\n        .orTimeout(2, TimeUnit.SECONDS);\n    CompletableFuture<Stock> stock = CompletableFuture\n        .supplyAsync(() -> inventory.get(orderId), io)\n        .completeOnTimeout(Stock.UNKNOWN, 2, TimeUnit.SECONDS)\n        .exceptionally(ex -> Stock.UNKNOWN);\n    return price.thenCombine(stock, OrderView::new).join();\n}\n\nPricing is mandatory, so its timeout fails the request with a TimeoutException wrapped in CompletionException, which a @RestControllerAdvice can map to 504. Inventory degrades to UNKNOWN on timeout or error. Without the executor argument, supplyAsync uses ForkJoinPool.commonPool, which is sized to cores minus one and shared JVM-wide, so blocking HTTP calls there starve parallel streams and other async work. On Java 21 a virtual-thread executor suits blocking I/O; on older JDKs use a bounded ThreadPoolExecutor. Pitfalls: orTimeout does not cancel the underlying HTTP call, so also set connect and read timeouts on RestClient or WebClient, and MDC or trace context is not propagated automatically, so use Micrometer context propagation. Wall time is about the maximum of the two calls, with O(1) extra space."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Java Concurrency",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Comparison",
+    "question": "Java FDE: Compare synchronized, ReentrantLock and the atomic classes. When would you pick each one?",
+    "answer": "Use an atomic class for a single variable updated with compare-and-set, synchronized for simple critical sections, and ReentrantLock when you need features synchronized lacks. AtomicLong.incrementAndGet or LongAdder.increment is lock-free and ideal for counters; LongAdder spreads contention across cells and beats AtomicLong under heavy write contention, at the cost of a slower sum(). synchronized is concise, reentrant, released automatically even when an exception is thrown, and well optimised by the JIT. ReentrantLock adds tryLock with a timeout, lockInterruptibly, optional fairness and multiple Condition objects, but you must call unlock in a finally block or an exception leaks the lock forever. On Java 21 with virtual threads there is one more reason: blocking inside synchronized pins the virtual thread to its carrier, while ReentrantLock does not; JDK 24 removed most of that pinning through JEP 491. Atomics only protect one variable, so updating two related fields such as balance and lastUpdated still needs a lock, or an immutable object swapped through AtomicReference."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Java Concurrency",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Coding",
+    "question": "Java FDE: Several consumer threads must count events per customer id in a shared map. Write a thread-safe implementation and explain why get-then-put is wrong even on a ConcurrentHashMap.",
+    "answer": "Use ConcurrentHashMap.merge or computeIfAbsent, which perform the read-modify-write atomically per key; a separate get followed by put is two operations, so two threads can read the same old value and one increment is lost.\n\npublic final class CustomerCounter {\n    private final ConcurrentHashMap<String, LongAdder> counts = new ConcurrentHashMap<>();\n\n    public void record(String customerId) {\n        counts.computeIfAbsent(customerId, k -> new LongAdder()).increment();\n    }\n\n    public long count(String customerId) {\n        LongAdder adder = counts.get(customerId);\n        return adder == null ? 0 : adder.sum();\n    }\n}\n\nThe simpler counts.merge(customerId, 1L, Long::sum) on a ConcurrentHashMap<String, Long> is also correct; the LongAdder version reduces contention when a few hot keys receive most updates. Each record call is O(1) average time, and space is O(k) for k distinct customers. Internally, since Java 8, ConcurrentHashMap uses CAS to insert into empty bins and synchronises only on the head node of a bin for updates, so threads touching different bins rarely block. Keep compute and computeIfAbsent functions short and never modify the same map inside them, because they run while holding the bin lock and recursive updates can throw IllegalStateException or hang. Null keys and values are rejected, and size() and iteration are weakly consistent, which is fine for metrics but not for exact invariants."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Java Concurrency",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Scenario",
+    "question": "Java FDE: A customer's Spring Boot integration service uses a 400-thread pool to call a slow partner API, and its p99 latency keeps climbing under load. How do you size the pool properly?",
+    "answer": "Size from measured demand using Little's Law and the real downstream limits, not by adding threads. For I/O-bound work, concurrency needed is roughly throughput times latency: 200 requests per second at 0.5 seconds average partner latency needs about 100 concurrent calls; the classic formula is cores times (1 + wait time / compute time). For CPU-bound work, stay near the core count from Runtime.availableProcessors(), which respects container CPU limits. Then check what actually caps concurrency: if the partner allows 50 concurrent connections or the HTTP client pool has 20 connections, the other threads just queue inside the client, adding memory and latency. Use a ThreadPoolExecutor with a bounded ArrayBlockingQueue and an explicit rejection policy such as CallerRunsPolicy or a fast 503, and avoid Executors.newFixedThreadPool, whose unbounded LinkedBlockingQueue hides overload until memory runs out. Add timeouts and a Resilience4j circuit breaker. Verify by exposing executor metrics through Micrometer, such as active threads and queue size, and load testing with k6 or Gatling until latency stays flat."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Java Concurrency",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Scenario",
+    "question": "Java FDE: After enabling virtual threads in a Spring Boot 3.2 service on Java 21, throughput barely improves and some requests hang. What is happening and how do you fix it?",
+    "answer": "Virtual threads make blocking cheap but do not remove downstream limits, and on Java 21 they can be pinned to carrier threads, so the usual culprits are an exhausted connection pool and pinning. With spring.threads.virtual.enabled=true, Tomcat accepts far more concurrent requests, but if HikariCP has maximumPoolSize=10, thousands of virtual threads simply wait on getConnection and time out; throughput is bounded by the database, not by threads. Pinning happens when a virtual thread blocks inside a synchronized block or native call: it holds its carrier, and because the carrier pool defaults to the core count, a few pinned threads can stall everything. Diagnose with -Djdk.tracePinnedThreads=full or the JFR event jdk.VirtualThreadPinned, and capture virtual threads with jcmd 1 Thread.dump_to_file -format=json /tmp/threads.json. Fixes: replace synchronized around I/O with ReentrantLock, upgrade libraries or move to JDK 24 where JEP 491 removes synchronized pinning, cap access to scarce resources with a Semaphore, and never pool virtual threads or cache heavy objects in ThreadLocal. They help I/O-bound workloads, not CPU-bound ones."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - JVM Internals",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Conceptual",
+    "question": "Java FDE: Describe the main JVM memory areas and explain why they matter when you run Java in containers.",
+    "answer": "The JVM divides memory into the heap, shared by all threads, and several non-heap areas. The heap holds objects and arrays; with G1 it is split into regions acting as young (eden and survivor) or old generation, and the string pool has lived on the heap since Java 7. Metaspace, which replaced PermGen in Java 8, stores class metadata in native memory and is unbounded unless you set -XX:MaxMetaspaceSize, so classloader leaks show up as OutOfMemoryError: Metaspace. Each thread gets its own stack, 1 MB by default on 64-bit Linux and set with -Xss, holding frames and local variables; deep recursion causes StackOverflowError. The code cache stores JIT-compiled native code, sized by -XX:ReservedCodeCacheSize. Direct ByteBuffers used by Netty and NIO live off-heap, limited by -XX:MaxDirectMemorySize. GC bookkeeping and malloc arenas add more. This matters because process RSS is heap plus all of these, so a container limit must leave room beyond the maximum heap; Native Memory Tracking with jcmd VM.native_memory summary shows the breakdown."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - JVM Internals",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Scenario",
+    "question": "Java FDE: A pricing API on Java 21 shows p99 latency spikes of 300 to 500 ms that line up with G1 pauses. How do you investigate, and when would you switch to ZGC?",
+    "answer": "Confirm with GC logs first, then tune G1, or switch to Generational ZGC if pause time rather than throughput is the business constraint. Enable -Xlog:gc*:file=/var/log/gc.log:time,uptime,level,tags and look for long young pauses, to-space exhausted events or Full GC; JFR shows allocation rate and the hottest allocation sites. Often the cause is fixable: an undersized heap, humongous allocations of large byte arrays (objects at least half a region in size), or an allocation-heavy code path. G1 defaults to -XX:MaxGCPauseMillis=200, and giving it more heap or a larger -XX:G1HeapRegionSize can help. If pauses must stay in single-digit milliseconds, use -XX:+UseZGC -XX:+ZGenerational on Java 21 (generational mode became the default in JDK 23); ZGC marks and relocates concurrently, with sub-millisecond pauses largely independent of heap size. Trade-offs: ZGC uses more CPU and needs heap headroom, or allocation stalls appear. Verify with a load test comparing p99, throughput and CPU before and after."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - JVM Internals",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A Spring Boot service crashes every few days with java.lang.OutOfMemoryError: Java heap space. Walk through how you capture evidence and find the leak.",
+    "answer": "Capture a heap dump at the moment of failure, find what dominates retained memory, and trace it back to the code holding references. Start the JVM with -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dumps on a persistent volume, plus -XX:+ExitOnOutOfMemoryError so Kubernetes restarts the pod instead of letting it limp. Before it dies, compare jcmd 1 GC.class_histogram output taken an hour apart to see which classes keep growing, and check GC logs for old-generation occupancy that never drops after full collections, the signature of a leak rather than undersizing. Open the .hprof file in Eclipse MAT, run Leak Suspects, and follow the dominator tree and path to GC roots. Typical findings: an unbounded static map used as a cache, ThreadLocal values never removed on pooled threads, or a Hibernate persistence context bloated by a huge batch in one transaction. Fix with a bounded Caffeine cache using maximumSize and expireAfterWrite, ThreadLocal.remove() in a finally block, or chunked batches with entityManager.clear(). Treat heap dumps as sensitive customer data, and verify with a soak test showing flat post-GC heap."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - JVM Internals",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A money transfer service in Kubernetes stops processing requests and CPU drops to near zero, but the pod stays Running and liveness passes. How do you prove a deadlock and fix it?",
+    "answer": "Low CPU with stuck requests points to threads blocked on locks, so take thread dumps and let the JVM report the cycle. Use kubectl exec into the pod and run jcmd 1 Thread.print -l, or jstack -l 1, three times about ten seconds apart. A true deadlock ends with Found one Java-level deadlock and shows, for example, thread A holding the monitor for account 17 while waiting for account 42, and thread B the reverse; threads stuck in identical frames across all dumps rule out slow I/O. The usual cause is acquiring two locks in inconsistent order, such as synchronising on the source account and then the target. Fix it by imposing a global order, always locking the lower account id first, or by using ReentrantLock.tryLock with a timeout and retry. Better still, push consistency into the database with one transaction and SELECT FOR UPDATE in a fixed order. Make it detectable: a custom Spring Boot health indicator calling ThreadMXBean.findDeadlockedThreads can fail liveness, and request timeouts limit the blast radius."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - JVM Internals",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A Java 21 pod with a 2 GiB memory limit is repeatedly OOMKilled with exit code 137, yet heap usage in Grafana never passes 1.2 GiB. What is consuming the memory and how should the JVM be configured?",
+    "answer": "The kernel kills the container when total process memory exceeds the cgroup limit, and heap is only part of it; metaspace, thread stacks, code cache, direct buffers, GC structures and malloc arenas make up the rest. Confirm with kubectl describe pod showing Last State Terminated with Reason OOMKilled, which differs from a Java OutOfMemoryError. Then enable -XX:NativeMemoryTracking=summary and run jcmd 1 VM.native_memory summary to see the breakdown; common culprits are 400 threads at 1 MB of stack each, Netty direct buffers, or glibc arenas, which MALLOC_ARENA_MAX=2 tames. Size the heap relative to the container instead of hardcoding -Xmx: modern JDKs are container-aware through UseContainerSupport, so -XX:MaxRAMPercentage=75.0 gives about 1.5 GiB of heap and leaves room for native memory; drop to 60 to 65 percent for heavy off-heap use. Cap other areas with -XX:MaxMetaspaceSize, -XX:MaxDirectMemorySize and -Xss if needed. Set memory requests equal to limits, and verify with container_memory_working_set_bytes alongside JVM metrics."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Conceptual",
+    "question": "Java FDE: How do Spring Boot starters and auto-configuration work together, and how do you find out why a particular bean was or was not created?",
+    "answer": "A starter is a dependency bundle, and auto-configuration is a set of conditional @AutoConfiguration classes that create sensible beans only when the right classes, properties and missing beans line up. Adding spring-boot-starter-data-jpa puts Hibernate, HikariCP and Spring Data on the classpath; Boot then reads the classes listed in META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports and evaluates conditions such as @ConditionalOnClass, @ConditionalOnProperty and @ConditionalOnMissingBean. That last one is the key design rule: if you define your own DataSource or ObjectMapper bean, Boot backs off and uses yours. To debug, start the app with --debug or debug=true to print the condition evaluation report, or call /actuator/conditions, which lists positive and negative matches with the reason for each. You can switch a class off with spring.autoconfigure.exclude or @SpringBootApplication(exclude = ...). A common pitfall at a customer site is an unexpected starter pulled in transitively, for example a second web stack, which silently changes which auto-configuration wins."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Comparison",
+    "question": "Java FDE: Compare constructor, setter and field injection in Spring, and explain the singleton, prototype and request bean scopes, including what goes wrong when a singleton depends on a request-scoped bean.",
+    "answer": "Prefer constructor injection: dependencies are final, the class is testable with plain new, and missing beans fail at startup; setter injection suits genuinely optional dependencies, and field injection with @Autowired hides dependencies and needs reflection in tests. With a single constructor Spring injects it without any annotation. Scopes control how many instances exist: singleton, the default, is one instance per application context and must therefore be stateless or thread-safe; prototype creates a new instance every time it is requested from the container; request and session scopes create one instance per HTTP request or session. The classic trap is injecting a request-scoped bean into a singleton controller: the singleton is built once, so Spring either fails with a scope error or, without a proxy, would freeze the first instance. Fix it with a scoped proxy, which @RequestScope already applies by default, or inject ObjectProvider<T> and call getObject() per use. The same applies to prototype beans inside singletons, which are created only once unless you look them up through ObjectProvider."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Implementation / Workflow",
+    "question": "Java FDE: You deploy the same Spring Boot service to dev, staging and a customer's production cloud. How do you structure profiles and externalised configuration so nothing environment-specific is baked into the image?",
+    "answer": "Build one immutable image and push all environment differences in through externalised configuration, using profiles only for genuine behaviour changes. Keep defaults in application.yml, add application-staging.yml or application-prod.yml for profile overrides, and activate with SPRING_PROFILES_ACTIVE. Bind settings into typed, validated records with @ConfigurationProperties(prefix = \"payments\") plus @Validated, so a missing URL fails at startup rather than at the first request. Boot's precedence lets later sources win: packaged files, then external files such as spring.config.import=optional:configtree:/etc/config/ for Kubernetes ConfigMap or Secret mounts, then environment variables like PAYMENTS_BASEURL through relaxed binding, then command-line arguments. Secrets come from the cloud's secret store, via Spring Cloud AWS, Spring Cloud Azure or GCP Secret Manager integrations, or mounted files, never from Git. Verify the effective values with /actuator/env, which masks sensitive keys by default in Boot 3. The common pitfall is profile sprawl, where a dozen customer-specific profiles diverge; prefer properties over new profiles."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a Spring Boot 3 endpoint that creates an order, validates the body with @Valid, returns 201 with a Location header, and maps errors to RFC 9457 ProblemDetail responses through a global @RestControllerAdvice.",
+    "answer": "Validate with Jakarta Bean Validation on a record, return ResponseEntity.created, and extend ResponseEntityExceptionHandler so framework errors and your own exceptions all render as application/problem+json.\n\nrecord CreateOrderRequest(@NotBlank String customerId, @Positive int quantity) {}\n\n@RestController\n@RequestMapping(\"/api/v1/orders\")\nclass OrderController {\n    private final OrderService service;\n    OrderController(OrderService service) { this.service = service; }\n\n    @PostMapping\n    ResponseEntity<OrderDto> create(@Valid @RequestBody CreateOrderRequest req) {\n        OrderDto dto = service.create(req);\n        return ResponseEntity.created(URI.create(\"/api/v1/orders/\" + dto.id())).body(dto);\n    }\n}\n\n@RestControllerAdvice\nclass ApiErrors extends ResponseEntityExceptionHandler {\n    @ExceptionHandler(OrderNotFoundException.class)\n    ProblemDetail notFound(OrderNotFoundException ex) {\n        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());\n        pd.setTitle(\"Order not found\");\n        pd.setProperty(\"errorCode\", \"ORDER_NOT_FOUND\");\n        return pd;\n    }\n}\n\nA failed @Valid throws MethodArgumentNotValidException, which the base class already turns into a 400 ProblemDetail; override handleMethodArgumentNotValid to add a fieldErrors property so the React or Angular form can highlight fields. Setting spring.mvc.problemdetails.enabled=true gives the same format without a custom advice. Use 201 for create, 404 for missing resources, 409 for state conflicts and 422 only if your team agrees on it for business-rule failures. Pitfall: forgetting @Valid on the parameter means constraints never run. Verify with a @WebMvcTest asserting status and jsonPath(\"$.title\")."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: A customer's mobile client retries POST /payments on timeouts and has created duplicate charges. Implement Idempotency-Key handling in a Spring Boot service backed by a SQL table.",
+    "answer": "Persist the key with a unique constraint before doing the work, then replay the stored response for retries and reject reuse of the same key with a different body.\n\npublic PaymentDto pay(String key, PaymentRequest req) {\n    String hash = fingerprint(req); // SHA-256 of canonical JSON\n    if (store.tryInsert(key, hash)) {\n        try {\n            PaymentDto result = gateway.charge(req, key);\n            store.complete(key, toJson(result));\n            return result;\n        } catch (RuntimeException ex) {\n            store.delete(key);\n            throw ex;\n        }\n    }\n    IdemRecord existing = store.find(key).orElseThrow();\n    if (!existing.requestHash().equals(hash)) {\n        throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, \"Key reused with a different body\");\n    }\n    if (\"IN_PROGRESS\".equals(existing.status())) {\n        throw new ResponseStatusException(HttpStatus.CONFLICT, \"Original request still processing\");\n    }\n    return fromJson(existing.responseJson(), PaymentDto.class);\n}\n\ntryInsert runs INSERT INTO idempotency_keys (idem_key, request_hash, status) VALUES (?, ?, 'IN_PROGRESS') ON CONFLICT (idem_key) DO NOTHING in its own short transaction and returns true when one row was inserted, so the database, not application code, settles races between concurrent retries. The controller reads @RequestHeader(\"Idempotency-Key\"). Passing the same key to the payment provider gives end-to-end protection, since providers such as Stripe accept an Idempotency-Key header. Do not wrap the external call in one long database transaction, which holds connections and row locks. Expire keys after 24 to 72 hours with a scheduled cleanup. Verify by firing two identical requests concurrently in a Testcontainers test and asserting exactly one charge."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Comparison",
+    "question": "Java FDE: Compare offset pagination with keyset (cursor) pagination for a Spring Boot list endpoint, and explain how you would version the API without breaking an existing frontend.",
+    "answer": "Offset pagination is simplest, keyset pagination scales and stays stable under inserts. Spring Data's Pageable gives ?page=3&size=50 with LIMIT and OFFSET, but the database still walks every skipped row, so deep pages slow down, and new rows shift items between pages. Page also runs a count query; Slice avoids it when the UI only needs a next button. Keyset pagination filters on the last seen sort key, for example WHERE (created_at, id) < (?, ?) ORDER BY created_at DESC, id DESC LIMIT 50, backed by an index on those columns; Spring Data 3.1 supports it through ScrollPosition and Window. Return an opaque cursor so clients cannot depend on its internals. For versioning, prefer additive, backward-compatible changes: new optional fields, never renamed or removed ones. When a breaking change is unavoidable, add /api/v2 alongside v1, or a media-type version, run both during a published deprecation window with Deprecation and Sunset headers, and track v1 traffic in metrics before removing it."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: During a short database failover, Kubernetes restarted every pod of a Spring Boot service at once, turning a 30-second blip into a 10-minute outage. The liveness probe points at /actuator/health. What went wrong and how do you configure Actuator probes correctly?",
+    "answer": "The liveness probe used the aggregate health endpoint, which includes the db indicator, so a database outage made every pod report DOWN and the kubelet killed healthy JVMs that only needed to wait. Liveness should answer only whether this process is broken beyond recovery; readiness should answer whether it can serve traffic now. Spring Boot exposes both as health groups at /actuator/health/liveness and /actuator/health/readiness; they are enabled automatically on Kubernetes and explicitly with management.endpoint.health.probes.enabled=true. Point livenessProbe at the liveness group, which reflects LivenessState only, and readinessProbe at readiness. Add external checks to readiness carefully, for example management.endpoint.health.group.readiness.include=readinessState,db, accepting that a shared database outage removes all pods from the Service. Use a startupProbe with a generous failureThreshold so slow Flyway migrations do not trigger liveness kills. Also serve Actuator on a separate management.server.port so probes are not blocked by a saturated request pool. Verify by stopping the database in staging and confirming pods go unready but restart counts stay at zero."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Spring Boot and REST APIs",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Coding",
+    "question": "Java FDE: Configure a Spring Boot 3 API as a stateless OAuth2 resource server that validates JWTs from the customer's identity provider and maps a custom roles claim to Spring Security authorities.",
+    "answer": "Add spring-boot-starter-oauth2-resource-server, point it at the issuer, and supply a SecurityFilterChain with a JwtAuthenticationConverter that reads the roles claim.\n\n@Configuration\n@EnableMethodSecurity\nclass SecurityConfig {\n    @Bean\n    SecurityFilterChain api(HttpSecurity http) throws Exception {\n        return http\n            .csrf(csrf -> csrf.disable())\n            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))\n            .authorizeHttpRequests(auth -> auth\n                .requestMatchers(\"/actuator/health/**\").permitAll()\n                .requestMatchers(HttpMethod.POST, \"/api/v1/orders/**\").hasRole(\"order-writer\")\n                .anyRequest().authenticated())\n            .oauth2ResourceServer(o -> o.jwt(jwt -> jwt.jwtAuthenticationConverter(rolesConverter())))\n            .build();\n    }\n\n    private JwtAuthenticationConverter rolesConverter() {\n        var authorities = new JwtGrantedAuthoritiesConverter();\n        authorities.setAuthoritiesClaimName(\"roles\");\n        authorities.setAuthorityPrefix(\"ROLE_\");\n        var converter = new JwtAuthenticationConverter();\n        converter.setJwtGrantedAuthoritiesConverter(authorities);\n        return converter;\n    }\n}\n\nIn application.yml set spring.security.oauth2.resourceserver.jwt.issuer-uri so Boot discovers the JWKS endpoint and validates signature, exp and iss, and set spring.security.oauth2.resourceserver.jwt.audiences so tokens minted for other apps are rejected. Disabling CSRF is safe only because the API is stateless and uses bearer tokens, not cookies. Without the converter, Spring maps the scope claim to SCOPE_ authorities, which is the usual reason hasRole checks return 403. Use @PreAuthorize for method-level rules. Test with MockMvc and SecurityMockMvcRequestPostProcessors.jwt().authorities(...) rather than real tokens, and expect 401 for a missing token and 403 for a wrong role."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Data, JPA and SQL",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Conceptual",
+    "question": "Java FDE: Explain how you map an Order with many OrderLine rows in JPA, including the owning side, default fetch types, and why you avoid exposing entities directly from REST controllers.",
+    "answer": "Map the foreign key on the child with @ManyToOne(fetch = FetchType.LAZY) and @JoinColumn(name = \"order_id\"), and the parent with @OneToMany(mappedBy = \"order\", cascade = CascadeType.ALL, orphanRemoval = true). The side holding the foreign key, OrderLine, is the owning side; mappedBy marks the inverse side, so only changes to line.order are written to the database, which is why a helper like addLine sets both sides. Defaults matter: @ManyToOne and @OneToOne are EAGER by default and @OneToMany and @ManyToMany are LAZY, so explicitly mark to-one associations LAZY to avoid surprise joins. Use @Id with @GeneratedValue(strategy = GenerationType.SEQUENCE) on PostgreSQL for batch-friendly inserts, and implement equals and hashCode on a stable business key or id, not on all fields. Return DTOs or records from controllers instead of entities: serialising entities triggers lazy loading, can recurse infinitely across bidirectional links, and couples your API contract to the schema. Verify mappings by enabling spring.jpa.show-sql in a test and reading the generated SQL."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Data, JPA and SQL",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: An endpoint that returns an Order entity works locally but throws LazyInitializationException: could not initialize proxy - no Session in the customer's environment. What causes it and how do you fix it properly?",
+    "answer": "The entity left the transaction with an uninitialised lazy association, and Jackson touched it during serialisation after the persistence context had closed. It often works locally because spring.jpa.open-in-view defaults to true, keeping the session open for the whole web request, while the customer's configuration sets it to false or the code runs in an async thread or Kafka listener where no request-scoped session exists. Do not fix it by switching associations to EAGER or by enabling hibernate.enable_lazy_load_no_trans, both of which hide N+1 queries. Instead, load exactly what the response needs inside a @Transactional(readOnly = true) service method, using a JOIN FETCH query or @EntityGraph(attributePaths = \"lines\"), and map the result to a DTO record before returning. Better still, query directly into a DTO projection so no entity leaves the service layer. Set spring.jpa.open-in-view=false everywhere so local behaviour matches production; Boot logs a warning when it is left enabled by default. Verify with a @DataJpaTest or Testcontainers test that serialises the response outside a transaction."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Data, JPA and SQL",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: A list endpoint issues 1 query for 50 orders and then 50 more for their lines. Show how to remove the N+1 with a fetch join and an entity graph in Spring Data JPA, and explain what changes when the endpoint is paginated.",
+    "answer": "Fetch the association in the same query, either with JPQL JOIN FETCH or with @EntityGraph on a derived query method.\n\npublic interface OrderRepository extends JpaRepository<Order, Long> {\n\n    @Query(\"select o from Order o join fetch o.lines where o.customerId = :customerId\")\n    List<Order> findWithLines(@Param(\"customerId\") String customerId);\n\n    @EntityGraph(attributePaths = {\"lines\", \"customer\"})\n    List<Order> findByStatus(OrderStatus status);\n\n    @Query(\"select o.id from Order o where o.status = :status\")\n    Page<Long> findIdsByStatus(@Param(\"status\") OrderStatus status, Pageable pageable);\n\n    @EntityGraph(attributePaths = \"lines\")\n    List<Order> findByIdIn(Collection<Long> ids);\n}\n\nHibernate 6 deduplicates parent rows from a collection join automatically, so distinct is no longer required. Pagination is the trap: combining a collection fetch with Pageable makes Hibernate log HHH90003004 and apply LIMIT in memory after loading every row, so fetch a page of ids first with findIdsByStatus, then load those ids with findByIdIn and reorder to match. A simpler alternative is spring.jpa.properties.hibernate.default_batch_fetch_size=50, which turns N lazy loads into a few IN queries. Fetching two List collections at once throws MultipleBagFetchException; use Set or separate queries. Set hibernate.query.fail_on_pagination_over_collection_fetch=true to turn the in-memory warning into an error. Verify by enabling hibernate.generate_statistics or asserting the statement count with a datasource-proxy listener in a test, so the regression cannot return silently."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Data, JPA and SQL",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A service method annotated @Transactional writes an order and an audit row, the audit insert fails, yet the order row stays committed. List the likely causes and how you confirm each.",
+    "answer": "The usual causes are that the transactional proxy was bypassed, the exception type does not trigger rollback, or the exception was swallowed. First, self-invocation: if placeOrder calls this.saveAll() inside the same bean, the call never goes through the Spring proxy, so the @Transactional on saveAll is ignored; the same happens with private methods or a final class under some proxy setups. Move the method to another bean or inject the proxy. Second, Spring rolls back only on RuntimeException and Error by default, so a checked exception such as IOException commits; add rollbackFor = Exception.class or wrap it. Third, a try/catch that logs and continues, or an inner REQUIRES_NEW transaction that committed independently, which is correct for audit logs but not for business rows. Also confirm both writes use the same transaction manager and DataSource. To verify, set logging.level.org.springframework.transaction.interceptor=TRACE and org.springframework.orm.jpa.JpaTransactionManager=DEBUG to see transaction boundaries, and write a Testcontainers test that forces the audit failure and asserts the order table stays empty."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Data, JPA and SQL",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Scenario",
+    "question": "Java FDE: Two support agents edit the same customer record in an Angular admin screen, and the second save silently overwrites the first. How do you prevent lost updates with JPA optimistic locking end to end?",
+    "answer": "Add a version column with @Version so Hibernate appends AND version = ? to every UPDATE and fails when no row matches. Declare private long version on the entity and add the column through a Flyway migration. When the second save finds the version already incremented, Spring throws ObjectOptimisticLockingFailureException. The catch is the web round trip: the version must travel with the data. Return it in the GET response, ideally as an ETag header, have the Angular form send it back in If-Match or the request body, and compare it before applying changes, because loading a fresh entity and copying fields onto it would otherwise use the newest version and defeat the check. Map the exception in @RestControllerAdvice to 409 Conflict, or 412 Precondition Failed for If-Match, with a ProblemDetail telling the user to reload and reapply. Optimistic locking suits low-contention edits; for hot rows like stock counters use an atomic UPDATE or PESSIMISTIC_WRITE with SELECT FOR UPDATE. Verify with a test that loads the entity twice, saves both, and expects the conflict."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Data, JPA and SQL",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Scenario",
+    "question": "Java FDE: Under a customer's load test, a Spring Boot service starts failing with HikariPool-1 - Connection is not available, request timed out after 30000ms, while database CPU stays low. How do you diagnose and fix it?",
+    "answer": "Low database CPU with pool timeouts means connections are being held, not used, so find who holds them and for how long before touching pool size. HikariCP defaults to maximumPoolSize 10 and connectionTimeout 30 seconds, so ten slow holders block everyone. Expose hikaricp.connections.active, pending and usage metrics through Actuator and Micrometer, and set spring.datasource.hikari.leak-detection-threshold=20000 to log stack traces of connections held too long. Typical culprits: an HTTP call to a third-party API inside a @Transactional method, open-in-view keeping a connection for the whole request including JSON rendering, unclosed connections from raw JDBC, or a missing timeout on the external client. Fix by moving remote calls outside transactions, setting spring.jpa.open-in-view=false, and adding connect and read timeouts. Then size the pool deliberately: more connections rarely help, since replicas times pool size must stay under the database max_connections, and the HikariCP guidance of roughly cores times two plus spindles is a starting point. Verify by re-running the load test and watching pending connections stay near zero and p99 latency flatten."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Data, JPA and SQL",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: GET /customers/{id}/orders takes four seconds in production but 50 ms in dev. You suspect a missing index on PostgreSQL. How do you prove it and ship the fix safely through Flyway?",
+    "answer": "Prove it with the real plan from production-like data, then add the index through a non-blocking migration. Capture the generated SQL from logs or pg_stat_statements, which also ranks queries by total time, and run EXPLAIN (ANALYZE, BUFFERS) on it with production parameters. A Seq Scan on orders with Rows Removed by Filter in the millions confirms the problem; dev is fast because it has a few hundred rows. The query filters on customer_id and sorts by created_at, so create a composite index matching both: CREATE INDEX CONCURRENTLY idx_orders_customer_created ON orders (customer_id, created_at DESC). CONCURRENTLY avoids locking writes but cannot run inside a transaction, so put it alone in its own versioned file such as V42__orders_customer_index.sql; Flyway recognises the statement on PostgreSQL and runs that migration non-transactionally. A failed concurrent build leaves an INVALID index that must be dropped before retrying. Re-run EXPLAIN to confirm an Index Scan, and watch the endpoint's p95 latency in your dashboards. Liquibase achieves the same with runInTransaction=false on the changeset."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Testing",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Comparison",
+    "question": "Java FDE: When do you use @WebMvcTest, @DataJpaTest and @SpringBootTest, and what does each one load?",
+    "answer": "Use the narrowest slice that covers the behaviour: @WebMvcTest for the web layer, @DataJpaTest for repositories, and @SpringBootTest for wiring and end-to-end flows. @WebMvcTest loads controllers, @ControllerAdvice, Jackson, validation, filters and the Spring Security configuration, but not services or repositories, so you replace collaborators with @MockitoBean, which supersedes the deprecated @MockBean since Spring Boot 3.4. It runs in a second or two and is ideal for status codes, validation errors and JSON shape via MockMvc. @DataJpaTest loads JPA, repositories and Flyway, wraps each test in a rolled-back transaction, and by default swaps in an embedded database; add @AutoConfigureTestDatabase(replace = NONE) with Testcontainers to test against real PostgreSQL, since H2 dialect differences hide bugs. @SpringBootTest starts the full context, optionally with webEnvironment = RANDOM_PORT and a real HTTP client, and catches configuration and integration problems but is slower. A healthy pyramid has many plain JUnit and Mockito tests, a moderate number of slices, and a few full-context integration tests."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Testing",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a JUnit 5 and Mockito unit test showing that OrderService does not save an order when the payment client declines the charge.",
+    "answer": "Mock the collaborators with MockitoExtension, stub the decline, assert the exception, and verify the repository was never called.\n\n@ExtendWith(MockitoExtension.class)\nclass OrderServiceTest {\n    @Mock OrderRepository repository;\n    @Mock PaymentClient paymentClient;\n    @InjectMocks OrderService service;\n\n    @Test\n    void doesNotSaveWhenPaymentDeclined() {\n        when(paymentClient.charge(any())).thenReturn(PaymentResult.declined(\"insufficient funds\"));\n\n        assertThrows(PaymentDeclinedException.class,\n            () -> service.place(new CreateOrderRequest(\"c-42\", 2)));\n\n        verify(repository, never()).save(any());\n    }\n\n    @Test\n    void savesWhenPaymentApproved() {\n        when(paymentClient.charge(any())).thenReturn(PaymentResult.approved(\"tx-1\"));\n        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));\n\n        Order order = service.place(new CreateOrderRequest(\"c-42\", 2));\n\n        assertEquals(OrderStatus.PAID, order.getStatus());\n    }\n}\n\nNo Spring context is started, so these run in milliseconds. MockitoExtension uses strict stubs, which fails the test with UnnecessaryStubbingException when a stub is never used, a useful signal that the test no longer matches the code. Prefer constructor injection in OrderService so @InjectMocks, or a plain new OrderService(repository, paymentClient), works predictably. Use ArgumentCaptor when you need to assert what was saved, and @ParameterizedTest with @CsvSource to cover several decline reasons without copy-paste. Avoid mocking value objects or the class under test."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Testing",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a Spring Boot integration test that uses Testcontainers for PostgreSQL and Kafka to verify that a shipment event consumed from Kafka marks an order as shipped.",
+    "answer": "Start real containers, wire them in with @ServiceConnection, publish an event, and wait asynchronously for the database state with Awaitility.\n\n@SpringBootTest\n@Testcontainers\nclass ShipmentFlowIT {\n    @Container @ServiceConnection\n    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(\"postgres:16-alpine\");\n\n    @Container @ServiceConnection\n    static KafkaContainer kafka = new KafkaContainer(\"apache/kafka:3.8.0\");\n\n    @Autowired OrderRepository repository;\n    @Autowired KafkaTemplate<String, String> kafkaTemplate;\n\n    @Test\n    void shipmentEventMarksOrderShipped() {\n        Order saved = repository.save(Order.pending(\"c-42\"));\n\n        kafkaTemplate.send(\"shipments\", saved.getId().toString(),\n            \"{\\\"orderId\\\":\" + saved.getId() + \"}\");\n\n        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->\n            assertThat(repository.findById(saved.getId()))\n                .get().extracting(Order::getStatus).isEqualTo(OrderStatus.SHIPPED));\n    }\n}\n\nKafkaContainer here is org.testcontainers.kafka.KafkaContainer from Testcontainers 1.20, and @ServiceConnection, available since Spring Boot 3.1, sets the datasource URL and spring.kafka.bootstrap-servers without @DynamicPropertySource. Flyway runs against the real PostgreSQL, so migrations are tested too. Static containers are shared across test methods; to share across classes, put them in a base class or a @TestConfiguration, and enable reuse locally with testcontainers.reuse.enable=true. Never use Thread.sleep: Awaitility polls until the consumer commits, which keeps the test fast and stable. Set spring.kafka.consumer.auto-offset-reset=earliest so the listener sees messages sent before it was assigned partitions. CI runners need Docker access, or Testcontainers Cloud."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Testing",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Comparison",
+    "question": "Java FDE: Your Spring Boot service is consumed by a customer's React app and two internal microservices. Compare consumer-driven contract testing with Pact against producer-driven contracts with Spring Cloud Contract, and explain how either fits into CI/CD.",
+    "answer": "Both stop breaking API changes from reaching production without a full end-to-end environment; the difference is who writes the contract. With Pact, each consumer's tests run against a Pact mock server and generate a pact file of the requests it actually makes and the fields it reads; the files are published to a Pact Broker, and the provider build replays them against the real service using pact-jvm's JUnit 5 provider support. Before deploying, either side runs pact-broker can-i-deploy to check compatibility with what is live in that environment. With Spring Cloud Contract, the provider team writes contracts in Groovy, YAML or Kotlin DSL; the plugin generates provider tests and publishes a stubs jar that consumers run through Stub Runner and WireMock. Pact fits polyglot consumers like a JavaScript frontend and evolves from real usage; Spring Cloud Contract suits JVM-heavy teams where the provider owns the API. Pitfalls: over-specified contracts that assert every field, and skipping can-i-deploy, which removes the main safety benefit."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Testing",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: The integration test suite of a Spring Boot service has grown to 25 minutes and the logs show the Spring banner printed dozens of times. What is causing it and how do you bring the time down?",
+    "answer": "Each banner is a new application context, which means the TestContext framework's context cache is being missed. Spring caches contexts keyed on the full test configuration, so any difference creates a new one: a different set of @MockitoBean or @MockBean fields, a different @ActiveProfiles or @TestPropertySource, a class-specific @Import, or @DirtiesContext, which deliberately throws the context away. Each new context also starts its own connection pool and Kafka consumers. Confirm by setting logging.level.org.springframework.test.context.cache=DEBUG, which logs cache hits, misses and size. Fix it by standardising: create a small number of abstract base classes or a meta-annotation that declares the same profiles, properties and mocks, move mocks into a shared @TestConfiguration, remove @DirtiesContext in favour of cleaning data with @Sql or truncation, and push behaviour checks down into @WebMvcTest slices or plain unit tests. The default cache holds 32 contexts, configurable with spring.test.context.cache.maxSize. Also share Testcontainers through static fields and enable parallel forks in Maven Surefire or Gradle. Measure before and after with the build scan or Surefire report."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Microservices and Messaging",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Comparison",
+    "question": "Java FDE: When would you have two Spring Boot microservices talk over synchronous REST, and when would you publish an asynchronous event instead?",
+    "answer": "Use synchronous REST when the caller needs an answer right now to continue, and publish an event when the caller only needs to announce that something happened and other services can react later. For example, a checkout service calling a pricing service to get a quote before showing the total is a natural REST call through RestClient or WebClient. Once the order is placed, publishing an OrderPlaced event to Kafka lets inventory, email and analytics react independently without checkout waiting on them. The trade-off is coupling versus consistency: REST chains couple availability, so if pricing is down checkout is down, and latency adds up across hops. Events decouple availability and absorb spikes, but you accept eventual consistency, duplicate delivery and harder debugging. A good boundary check is whether the downstream failure should fail the user request; if not, it should probably be an event. A common pitfall is a long synchronous chain of four or five services, which multiplies tail latency and failure probability."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Microservices and Messaging",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Conceptual",
+    "question": "Java FDE: Explain how Kafka partitions, consumer groups and committed offsets work together, and what ordering guarantee a Spring Kafka listener actually gets.",
+    "answer": "Kafka guarantees ordering only within a partition, and within a consumer group each partition is assigned to exactly one consumer at a time, which tracks its progress through committed offsets. A topic is split into partitions; the producer chooses the partition by hashing the record key, so all events for orderId 42 land in the same partition and stay in order. A consumer group such as billing-service shares the partitions among its instances, so a topic with 6 partitions can use at most 6 active consumers in that group; a seventh sits idle. Each consumer commits the offset of the next record to read, and after a restart or rebalance it resumes from that committed offset. In Spring Kafka, @KafkaListener with concurrency=3 creates three consumers, and the default AckMode.BATCH commits after the polled batch is processed. Pitfalls: a null or low-cardinality key causes hot or unordered partitions, and increasing partition count later changes the key-to-partition mapping, breaking per-key ordering for in-flight data."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Microservices and Messaging",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: Right after a deploy of a Spring Kafka consumer, consumer lag on the orders topic keeps growing and the group rebalances every few minutes. How do you diagnose and fix it?",
+    "answer": "Repeated rebalances with growing lag usually mean the consumer is taking longer than max.poll.interval.ms to process a batch, so the broker evicts it, the group rebalances, and uncommitted work is redone. First confirm with kafka-consumer-groups.sh --describe --group orders-service to see lag per partition and whether assignments keep changing, and check the logs for 'consumer poll timeout has expired' or CommitFailedException. Then diff what the deploy changed: a new synchronous call to a slow downstream API, a missing database index, or a larger max.poll.records are typical culprits. Fixes, in order: reduce max.poll.records so a batch fits inside the interval, add a timeout to the slow call, raise max.poll.interval.ms only if processing is legitimately slow, and scale consumers up to the partition count. If a single poison record keeps failing, a DefaultErrorHandler with a dead letter topic stops it blocking the partition. Verify by watching the records-lag-max metric fall and rebalance counts flatten in Grafana."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Microservices and Messaging",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: Configure Spring Kafka so a failing listener retries a record a few times with backoff and then sends it to a dead letter topic, without retrying validation errors.",
+    "answer": "Register a DefaultErrorHandler with a DeadLetterPublishingRecoverer and a backoff, and mark non-retryable exceptions so they go straight to the DLT.\n\n@Bean\nDefaultErrorHandler errorHandler(KafkaTemplate<Object, Object> template) {\n    var recoverer = new DeadLetterPublishingRecoverer(template,\n        (rec, ex) -> new TopicPartition(rec.topic() + \".DLT\", rec.partition()));\n    var backoff = new ExponentialBackOff(1000L, 2.0);\n    backoff.setMaxElapsedTime(10000L);\n    var handler = new DefaultErrorHandler(recoverer, backoff);\n    handler.addNotRetryableExceptions(ValidationException.class);\n    return handler;\n}\n\nSpring Boot wires a single CommonErrorHandler bean into the auto-configured listener container factory. The handler seeks back and redelivers the failed record within the same consumer, so ordering on that partition is kept, but the partition is blocked during backoff; keep total backoff well under max.poll.interval.ms. Mapping to the same partition number requires the .DLT topic to have at least as many partitions as the source. The recoverer adds headers such as kafka_dlt-exception-message and kafka_dlt-original-offset, which makes replay tooling easy. For long, non-blocking retries use @RetryableTopic, which routes to retry topics instead, at the cost of losing strict per-key ordering. Pitfall: if the listener catches and logs exceptions itself, the handler never sees them and nothing reaches the DLT. Verify with an EmbeddedKafka test that throws on a specific key and asserts the record lands on orders.DLT. Cost is O(1) per record plus the retry attempts."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Microservices and Messaging",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Comparison",
+    "question": "Java FDE: A customer asks whether to use RabbitMQ or Kafka for a new Spring Boot integration. How do RabbitMQ exchanges and queues differ from Kafka topics, and when would you pick RabbitMQ?",
+    "answer": "Pick RabbitMQ when you need flexible routing of tasks to workers with per-message acknowledgement, and Kafka when you need a durable, replayable event log consumed by many independent readers at high throughput. In RabbitMQ a producer publishes to an exchange, and bindings route messages to queues: direct exchanges route by exact routing key, topic exchanges by patterns like order.*.created, fanout to every bound queue, and headers by message headers. Consumers ack each message and it is removed from the queue, with dead-lettering via x-dead-letter-exchange and priorities or TTLs available. Kafka instead appends to partitioned logs, retains data by time or size, and lets every consumer group replay from any offset. So a job queue for PDF generation with competing workers, priorities and per-message retries fits RabbitMQ with Spring AMQP and @RabbitListener. An audit stream feeding analytics, search and billing, or anything needing replay, fits Kafka. Pitfall: using RabbitMQ as an event store; once acked, the message is gone. RabbitMQ streams narrow this gap but are a separate feature to evaluate."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Microservices and Messaging",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Design / Architecture",
+    "question": "Java FDE: Design an order flow across order, payment and inventory services that never loses an event and can undo partial work. Where do the transactional outbox and a saga fit, and what are the exactly-once caveats?",
+    "answer": "Use a transactional outbox in each service so state changes and events commit atomically, and an orchestrated or choreographed saga with compensating actions to undo partial work, while designing every consumer to be idempotent because end-to-end exactly-once does not exist across a database and Kafka. The order service writes the order row and an outbox row in one Postgres transaction; Debezium tails the WAL, or a poller reads the outbox, and publishes OrderCreated to Kafka. This removes the dual-write bug where the DB commits but the publish fails. The saga then proceeds: payment reserves funds and emits PaymentAuthorized, inventory reserves stock; if inventory fails, it emits StockRejected and payment runs a compensating refund, then the order moves to CANCELLED. Kafka's idempotent producer and transactions give exactly-once only for read-process-write within Kafka; side effects like a database write or a card charge can still repeat after a crash. So each consumer stores processed event IDs in a unique-keyed table within its own transaction. Verify with chaos tests that kill pods mid-saga."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Microservices and Messaging",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Coding",
+    "question": "Java FDE: Protect a Spring Boot call to a flaky downstream pricing API with Resilience4j. Show the circuit breaker, retry and timeout configuration and explain the order they apply in.",
+    "answer": "Combine a client-level timeout, a Resilience4j Retry and a CircuitBreaker with a fallback, so slow calls fail fast, transient errors are retried briefly, and a persistently failing dependency is cut off.\n\n@Service\nclass PricingClient {\n    private final RestClient rest;\n    PricingClient(RestClient.Builder b) { this.rest = b.baseUrl(\"https://pricing.internal\").build(); }\n\n    @CircuitBreaker(name = \"pricing\", fallbackMethod = \"cachedPrice\")\n    @Retry(name = \"pricing\")\n    public Price quote(String sku) {\n        return rest.get().uri(\"/prices/{sku}\", sku).retrieve().body(Price.class);\n    }\n    Price cachedPrice(String sku, Throwable t) { return priceCache.lastKnown(sku); }\n}\n\nresilience4j.circuitbreaker.instances.pricing.sliding-window-size=20\nresilience4j.circuitbreaker.instances.pricing.failure-rate-threshold=50\nresilience4j.circuitbreaker.instances.pricing.wait-duration-in-open-state=30s\nresilience4j.retry.instances.pricing.max-attempts=3\nresilience4j.retry.instances.pricing.wait-duration=200ms\n\nSet the connect and read timeouts on the underlying HTTP client, for example 500 ms and 2 s through a ClientHttpRequestFactory, because TimeLimiter annotations only work with async return types. With the default aspect order Retry wraps CircuitBreaker, so each attempt is recorded by the breaker and an open breaker throws CallNotPermittedException without hitting the network. Retry only idempotent calls such as this GET, and configure retry-exceptions so 4xx responses are not retried. Expose the breaker state through the Actuator health and Micrometer metrics so you can alert when it opens. Overhead is O(1) per call, with a ring buffer of size 20 in memory."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Third-Party Integrations",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Scenario",
+    "question": "Java FDE: A payment provider retried a webhook after your Spring Boot endpoint timed out, and some customers were charged twice for the same order. How do you fix the integration properly?",
+    "answer": "Make the webhook handler verify, deduplicate and acknowledge quickly, and make outbound charges idempotent, so retries by either side can never create a second payment. First, verify the signature: compute an HMAC-SHA256 over the raw request body and timestamp with the shared secret, compare using MessageDigest.isEqual, and reject events older than about five minutes to block replays. Read the raw bytes before Jackson parses them, or the signature will not match. Second, insert the provider's event ID into a processed_events table with a unique constraint in the same transaction as the business update; a duplicate key means return 200 and do nothing. Third, return 2xx within the provider's timeout by persisting the event and processing it asynchronously, rather than calling other services inline. For charges you initiate, send an Idempotency-Key derived from the order ID so the provider collapses retries. Respect the provider's rate limits on outbound calls with backoff on 429 and the Retry-After header. Verify by replaying the same webhook payload ten times in a test and asserting one charge."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Docker and Containers",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a production multi-stage Dockerfile for a Spring Boot 3 service that uses layered jars, a JRE-only base image and a non-root user.",
+    "answer": "Build with a JDK image, extract the Spring Boot layers, then copy them into a slim JRE image running as a non-root user so dependency layers are cached and the runtime image is small.\n\nFROM eclipse-temurin:21-jdk AS build\nWORKDIR /src\nCOPY mvnw pom.xml ./\nCOPY .mvn .mvn\nRUN ./mvnw -q dependency:go-offline\nCOPY src src\nRUN ./mvnw -q package -DskipTests && \\\n    java -Djarmode=tools -jar target/app.jar extract --layers --launcher --destination /layers\n\nFROM eclipse-temurin:21-jre\nRUN useradd --system --uid 10001 spring\nWORKDIR /app\nCOPY --from=build /layers/dependencies/ ./\nCOPY --from=build /layers/spring-boot-loader/ ./\nCOPY --from=build /layers/snapshot-dependencies/ ./\nCOPY --from=build /layers/application/ ./\nUSER 10001\nEXPOSE 8080\nENTRYPOINT [\"java\", \"-XX:MaxRAMPercentage=75\", \"org.springframework.boot.loader.launch.JarLauncher\"]\n\nCopying pom.xml before the source means dependency downloads are cached until the POM changes. Layer order puts rarely changing third-party jars first and your classes last, so a code change pushes only a few hundred kilobytes. The -Djarmode=tools extract syntax is Spring Boot 3.3 and later; older versions use -Djarmode=layertools extract. MaxRAMPercentage sizes the heap from the container memory limit instead of host memory. Running as a numeric UID lets Kubernetes runAsNonRoot verify it. Pitfalls: skipping tests here is fine only if CI runs them in an earlier stage, and an alpine base with musl can surprise native libraries. Verify with docker run --memory=512m and check docker image history for layer sizes."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Git and CI/CD",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Conceptual",
+    "question": "Java FDE: Describe a Git branching and pull request flow you would set up for a small team shipping a Spring Boot and React app to a customer every week.",
+    "answer": "I would use trunk-based development: short-lived feature branches off main, merged through pull requests that must pass CI and one review, with main always deployable. A developer creates feat/invoice-export from main, commits small changes, and opens a PR early as a draft so feedback arrives before the work is large. Branch protection on main requires the CI checks for unit tests, lint and the Docker build to pass, plus at least one approval, and blocks force pushes. Squash merging keeps history readable with one commit per change. Releases are tagged, for example v1.8.0, and the tag triggers the production deploy, while every merge to main deploys to staging. Unfinished features hide behind feature flags rather than long-lived branches. Compared with GitFlow, this avoids painful merges from long-running develop and release branches. A common pitfall is PRs of two thousand lines that nobody reviews properly; aim for changes reviewable in about fifteen minutes. Hotfixes branch from the release tag and are merged back to main."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Git and CI/CD",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a GitHub Actions workflow that tests a Spring Boot service, builds and scans its image, and deploys only from main.",
+    "answer": "Use one job that runs tests and builds the image, a scan step that fails on critical vulnerabilities, and a deploy step gated to main with an environment approval.\n\nname: ci\non: [push, pull_request]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    permissions: { contents: read, id-token: write }\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-java@v4\n        with: { distribution: temurin, java-version: '21', cache: maven }\n      - run: ./mvnw -B verify\n      - run: docker build -t app:${{ github.sha }} .\n      - uses: aquasecurity/trivy-action@0.28.0\n        with: { image-ref: 'app:${{ github.sha }}', severity: CRITICAL, exit-code: '1' }\n  deploy:\n    needs: build\n    if: github.ref == 'refs/heads/main'\n    environment: production\n    runs-on: ubuntu-latest\n    permissions: { contents: read, id-token: write }\n    steps:\n      - uses: aws-actions/configure-aws-credentials@v4\n        with: { role-to-assume: arn:aws:iam::123456789012:role/gha-deploy, aws-region: eu-west-1 }\n      - run: echo push to ECR and update the ECS service here\n\nmvnw verify runs unit and integration tests, including Testcontainers, before any image exists. Trivy fails the build on critical CVEs. The id-token permission enables OIDC federation, so there are no long-lived cloud keys in repository secrets. The production environment can require a reviewer. In practice the build job pushes the image to a registry tagged with the commit SHA and deploy references that exact digest, so what was scanned is what ships. Pitfall: tagging only latest makes rollbacks guesswork. Verify by opening a PR and confirming deploy is skipped."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Docker and Containers",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A Spring Boot image builds and runs fine on your Apple Silicon laptop but the CI build fails and the deployed container crashes immediately. What do you check?",
+    "answer": "Look for differences between the laptop and CI environments, with CPU architecture, uncommitted or ignored files, and environment-specific configuration as the usual causes. First, architecture: an image built on an M-series Mac is linux/arm64, so if it is pushed and run on amd64 nodes it fails with 'exec format error'. Build with docker buildx build --platform linux/amd64,linux/arm64 or let CI build it. Second, the build context: a file present locally but excluded by .gitignore or .dockerignore, such as a generated client or a local application-local.yml, does not exist in CI. Run a clean git clone and build to reproduce. Third, configuration: the app may rely on a local Postgres or an env var like SPRING_PROFILES_ACTIVE set in your shell; in CI, Testcontainers needs a Docker socket and the container needs secrets injected. Fourth, base image drift: unpinned tags like eclipse-temurin:latest change underneath you, so pin the version or digest. Read the first exception in the container logs with docker logs or kubectl logs --previous, since the root cause is usually above the Spring Boot banner."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Git and CI/CD",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Comparison",
+    "question": "Java FDE: Compare blue-green and canary deployments for a Spring Boot API with a shared Postgres database. Which would you choose and how do you handle schema changes?",
+    "answer": "Blue-green switches all traffic at once between two full environments and gives instant rollback, while canary shifts a small percentage of traffic to the new version and widens it based on metrics; for a customer-facing API with good observability I prefer canary, and both require backward-compatible schema changes. Blue-green is simple to reason about, for example two ECS target groups behind an ALB or two Kubernetes Services, but a bad release hits every user at the moment of the switch, and it doubles capacity during the cutover. Canary with Argo Rollouts, Flagger or weighted ALB target groups sends 5 percent of traffic, checks error rate and p99 latency against the stable version, then promotes or aborts automatically. Because both versions run against the same database simultaneously, use expand and contract migrations with Flyway or Liquibase: add the new nullable column first, deploy code that writes both, backfill, then drop the old column in a later release. Pitfall: a migration that renames a column breaks the old version instantly and makes rollback impossible."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Cloud Deployment",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Design / Architecture",
+    "question": "Java FDE: A customer wants a Spring Boot prototype live in their cloud this week. How do you choose between AWS ECS or EKS, Azure App Service or AKS, and GCP Cloud Run or GKE?",
+    "answer": "For a fast prototype I default to the managed container service without a cluster to run, which means ECS on Fargate on AWS, App Service for Containers or Container Apps on Azure, and Cloud Run on GCP, and only move to EKS, AKS or GKE when Kubernetes is already the customer's platform standard. The serverless options take the same Docker image, provide HTTPS, autoscaling, logs and revisions out of the box, and need far less setup than a cluster with ingress, node pools and upgrades. Cloud Run scales to zero and bills per request, which suits demos; ECS on Fargate needs an ALB and a task definition; App Service gives deployment slots for swaps. Choose Kubernetes when the customer already runs it, needs sidecars, custom networking or operators, or will host many services. Whichever you pick, connect to a managed database such as RDS, Azure Database for PostgreSQL or Cloud SQL, and keep infrastructure in Terraform so the prototype can be promoted later. Pitfall: building a cluster first and spending the week on networking instead of the demo."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Cloud Deployment",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Scenario",
+    "question": "Java FDE: During a customer engagement you find database passwords and an API key committed in application.yml and baked into the Docker image. How do you remediate and set up proper secrets management?",
+    "answer": "Treat the secrets as compromised: rotate them first, then move them into a managed secret store injected at runtime, and finally clean history and add guardrails. Rotation comes before anything else, because removing the file does not help if the image or Git history was pulled; change the database password and revoke the API key, then check audit logs for misuse. Next, store secrets in AWS Secrets Manager, Azure Key Vault or GCP Secret Manager. On Kubernetes, use the External Secrets Operator or the Secrets Store CSI driver with workload identity, such as IRSA, Azure Workload Identity or GKE Workload Identity, so pods get short-lived credentials without static keys. Spring Boot reads them via environment variables or spring.config.import, for example Spring Cloud AWS's aws-secretsmanager: prefix. Rebuild images so no layer contains the file, and rewrite Git history with git filter-repo while acknowledging forks may still hold it. Add gitleaks or GitHub secret scanning with push protection to CI. Verify with docker history and a scan of the image filesystem showing no credentials remain."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Kubernetes and Monitoring",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A Spring Boot pod on Kubernetes goes into CrashLoopBackOff because the liveness probe kills it before the application context finishes starting. How do you fix the probe setup?",
+    "answer": "Add a startupProbe that gives Spring Boot enough time to start, and point liveness and readiness at the Actuator group endpoints so liveness only checks the JVM is alive while readiness gates traffic. Confirm the diagnosis with kubectl describe pod, which shows 'Liveness probe failed' events and restart counts, and kubectl logs --previous, which shows the context was still initialising. Spring Boot exposes /actuator/health/liveness and /actuator/health/readiness automatically on Kubernetes, or with management.endpoint.health.probes.enabled=true. Configure startupProbe with httpGet on /actuator/health/liveness, periodSeconds 5 and failureThreshold 30, allowing 150 seconds; liveness and readiness do not run until it succeeds. Readiness should include critical dependencies via management.endpoint.health.group.readiness.include=readinessState,db, but liveness must not include the database, or a database outage restarts every pod. Also check that CPU requests are not so low that startup is throttled, a common cause of slow JVM boot. Verify by rolling out and watching kubectl get pods -w reach Ready with zero restarts."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Kubernetes and Monitoring",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: The HPA for a Spring Boot deployment keeps flapping between 3 and 12 replicas, and every scale-up briefly makes latency worse while new pods warm up. How do you stabilise autoscaling for a JVM workload?",
+    "answer": "Stop the HPA reacting to JVM warm-up noise: make new pods invisible until ready, damp scale-down, and scale on a signal that reflects real demand. A fresh JVM burns CPU on class loading and JIT compilation, so CPU-based autoscaling sees each new pod as overloaded and requests even more replicas, then scales back down once they settle. Add a startupProbe and a readinessProbe on /actuator/health/readiness so traffic only arrives after the context is up; the HPA also discounts CPU from pods that are not yet ready. Set behavior.scaleDown.stabilizationWindowSeconds to 300 and a scaleUp policy that adds a fixed number of pods per minute. Make sure CPU requests reflect steady-state usage, because utilisation is measured against requests, and avoid tight CPU limits that throttle GC and JIT threads. For queue consumers, scale on Kafka consumer lag with KEDA, and for APIs consider request rate through the Prometheus Adapter. Reduce warm-up itself with Class Data Sharing or a warm-up call before readiness. Verify by load testing and watching kubectl get hpa -w for a steady replica count."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Kubernetes and Monitoring",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Conceptual",
+    "question": "Java FDE: How do Micrometer, Prometheus and Grafana fit together to monitor a Spring Boot service, and which metrics would you put on the first dashboard?",
+    "answer": "Micrometer is the metrics facade inside the Spring Boot app, Prometheus scrapes and stores those metrics as time series, and Grafana queries Prometheus to draw dashboards and alerts. Adding spring-boot-starter-actuator and micrometer-registry-prometheus exposes /actuator/prometheus once you include prometheus in management.endpoints.web.exposure.include. Prometheus scrapes that endpoint every 15 to 30 seconds, typically discovered on Kubernetes through a ServiceMonitor or pod annotations. My first dashboard follows the RED method: request rate and error rate from http_server_requests_seconds_count split by status and uri, and latency percentiles from http_server_requests_seconds_bucket with histogram_quantile, after enabling percentiles-histogram for that metric. Then add JVM heap and GC pause time, HikariCP active connections, and Kafka consumer lag. Custom business metrics such as orders_created_total come from a Counter registered on the MeterRegistry. A pitfall is high-cardinality tags, such as user IDs or raw URLs with IDs, which explode Prometheus memory; keep tags to bounded values."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Kubernetes and Monitoring",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Scenario",
+    "question": "Java FDE: A customer reports checkout requests sometimes take eight seconds, but every service's average latency looks normal. How would you use OpenTelemetry distributed tracing across the Spring Boot services and Kafka to find the cause?",
+    "answer": "Instrument every service with OpenTelemetry so one trace follows the request across HTTP and Kafka hops, then look at the slowest traces to find which span holds the eight seconds. The quickest route is the OpenTelemetry Java agent, attached with -javaagent and configured with OTEL_SERVICE_NAME and OTEL_EXPORTER_OTLP_ENDPOINT, which auto-instruments Spring MVC, RestClient, JDBC and Kafka clients; alternatively use Micrometer Tracing with the OTel bridge. Context propagates through the W3C traceparent header on HTTP and as a Kafka record header, so a consumer span links back to the producer. Export to an OpenTelemetry Collector, then into Jaeger, Grafana Tempo or a cloud backend. Averages hide tail latency, so filter traces with duration over 5 seconds and compare their waterfalls. Typical findings are a HikariCP connection acquire span waiting because the pool is exhausted, a retry loop calling a third-party API three times, or a message sitting in a lagging topic. Use tail-based sampling in the collector to keep all slow and error traces. Verify the fix by watching p99 latency fall."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Kubernetes and Monitoring",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Implementation / Workflow",
+    "question": "Java FDE: How do you set up structured JSON logging with correlation IDs in Spring Boot so support can trace one customer request across services?",
+    "answer": "Emit logs as JSON with the trace ID and a request correlation ID in every line, propagated through headers and the MDC, so one search in the log platform returns the whole request. Spring Boot 3.4 and later supports structured logging natively with logging.structured.format.console=ecs or logstash; on older versions use logstash-logback-encoder. With Micrometer Tracing or the OpenTelemetry agent, traceId and spanId are put into the MDC automatically and appear as JSON fields. For a business-facing correlation ID, add a OncePerRequestFilter that reads X-Correlation-Id or generates a UUID, puts it into MDC, echoes it in the response, and removes it in a finally block. Outbound RestClient interceptors and Kafka producer interceptors copy it into headers, and consumers restore it into MDC. Ship logs from stdout through Fluent Bit to Elasticsearch, Loki or CloudWatch. Pitfalls: MDC is thread-local, so @Async and CompletableFuture lose it unless you use a TaskDecorator or context propagation, and never log tokens or card numbers. Verify by grepping one ID across services."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Comparison",
+    "question": "Java FDE: A customer asks whether their new internal portal on top of your Spring Boot APIs should use React, Angular, or Vue. How do you make and justify that choice?",
+    "answer": "Pick the framework the customer's team can maintain after you leave, then weigh technical fit. Angular is a full opinionated framework: TypeScript first, dependency injection, router, HttpClient, reactive forms and RxJS built in, which suits large enterprise teams with Java backgrounds who like Spring-style structure. React is a UI library with the biggest ecosystem and hiring pool; you assemble routing, data fetching (TanStack Query) and forms (React Hook Form) yourself, which is flexible but needs agreed conventions. Vue sits between the two: approachable single-file components, official Pinia and Vue Router, and a gentle learning curve for small teams. For example, if a fictional insurer, Northgate, already runs three Angular apps and its developers know RxJS, I would choose Angular even if I personally move faster in React, because handoff and support matter more than my speed in week one. Pitfall: choosing on benchmark performance; for a CRUD portal all three are fast enough, and long-term ownership dominates the decision."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Coding",
+    "question": "Java FDE: Your React app on http://localhost:5173 gets CORS errors calling a Spring Boot 3 API protected by Spring Security. Show a correct CORS configuration and explain when you would use a dev proxy instead.",
+    "answer": "Configure CORS inside the Spring Security filter chain, because a WebMvcConfigurer mapping alone runs after security, so the preflight OPTIONS request is rejected with 401 or 403 first.\n\n@Bean\nSecurityFilterChain api(HttpSecurity http) throws Exception {\n    http.cors(Customizer.withDefaults())\n        .csrf(csrf -> csrf.disable())\n        .authorizeHttpRequests(a -> a.anyRequest().authenticated())\n        .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));\n    return http.build();\n}\n\n@Bean\nCorsConfigurationSource corsConfigurationSource() {\n    CorsConfiguration c = new CorsConfiguration();\n    c.setAllowedOrigins(List.of(\"http://localhost:5173\", \"https://portal.example.com\"));\n    c.setAllowedMethods(List.of(\"GET\", \"POST\", \"PUT\", \"DELETE\", \"OPTIONS\"));\n    c.setAllowedHeaders(List.of(\"Authorization\", \"Content-Type\"));\n    c.setAllowCredentials(true);\n    c.setMaxAge(3600L);\n    UrlBasedCorsConfigurationSource s = new UrlBasedCorsConfigurationSource();\n    s.registerCorsConfiguration(\"/api/**\", c);\n    return s;\n}\n\nDisabling CSRF is reasonable only for a stateless bearer-token API. Never combine allowCredentials true with a wildcard origin; Spring rejects that, and allowedOriginPatterns is the narrow escape hatch. For local development, a Vite server.proxy entry mapping /api to http://localhost:8080 is often simpler: the browser sees a same-origin call, so no CORS is involved, which mirrors production where nginx or an ingress serves the SPA and API under one domain. Verify with curl -i -X OPTIONS plus Origin and Access-Control-Request-Method headers and check the Access-Control-Allow-Origin response header."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: Write a TypeScript fetch wrapper for a React app that attaches a JWT access token, refreshes it once on a 401 without firing parallel refresh calls, and treats 403 differently.",
+    "answer": "Keep the access token in memory, let the refresh token live in an HttpOnly cookie set by the backend, and share one in-flight refresh promise so ten concurrent 401s trigger a single refresh.\n\nlet accessToken: string | null = null;\nlet refreshing: Promise<string> | null = null;\n\nasync function refresh(): Promise<string> {\n  const r = await fetch(\"/api/auth/refresh\", { method: \"POST\", credentials: \"include\" });\n  if (!r.ok) throw new Error(\"session expired\");\n  accessToken = (await r.json()).accessToken as string;\n  return accessToken;\n}\n\nexport async function api(url: string, init: RequestInit = {}, retried = false): Promise<Response> {\n  const headers = new Headers(init.headers);\n  if (accessToken) headers.set(\"Authorization\", `Bearer ${accessToken}`);\n  const res = await fetch(url, { ...init, headers });\n  if (res.status === 401 && !retried) {\n    refreshing ??= refresh().finally(() => { refreshing = null; });\n    try { await refreshing; } catch { window.location.assign(\"/login\"); throw new Error(\"unauthenticated\"); }\n    return api(url, init, true);\n  }\n  if (res.status === 403) throw new Error(\"forbidden\");\n  return res;\n}\n\nA 401 means the identity is missing or expired, so refresh and retry exactly once; a 403 means authenticated but not allowed, so show an access-denied message and never refresh, otherwise you loop. The retried flag prevents infinite retries. Pitfall: storing tokens in localStorage exposes them to any XSS. On the Spring side, return 401 from the resource server's AuthenticationEntryPoint and 403 from the AccessDeniedHandler so the client can tell them apart."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Conceptual",
+    "question": "Java FDE: In Angular, what is an injectable service, and how do RxJS Observables and a BehaviorSubject help share data from a Spring Boot API across components? When would you reach for NgRx or signals instead?",
+    "answer": "An Angular service is a class marked @Injectable({ providedIn: 'root' }) that the dependency injector creates once and hands to any component that asks for it, much like a Spring singleton bean. HttpClient methods return cold Observables, so no request is sent until something subscribes, and operators such as map, catchError and switchMap transform the stream. For shared state, a service can hold a private BehaviorSubject<Customer[]> and expose customers$ = subject.asObservable(); components bind with the async pipe, which subscribes and unsubscribes automatically and avoids leaks. For example, after a save the service calls next() with the updated list and every view refreshes. Angular signals (signal and computed) are now a simpler option for synchronous UI state. Reach for NgRx when many features mutate the same state and you need actions, effects and devtools time travel; for a small customer portal, a service with signals or a BehaviorSubject is enough. Pitfall: subscribing manually in components without takeUntilDestroyed."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Scenario",
+    "question": "Java FDE: A customer complains that the React form accepts values the Spring Boot API then rejects with a 400. How do you keep frontend validation aligned with backend Bean Validation without duplicating rules by hand?",
+    "answer": "Treat the backend as the source of truth, mirror its rules on the frontend automatically where possible, and always render server errors per field. On the API, annotate the DTO with @NotBlank, @Size(max = 80), @Email and @Pattern, validate with @Valid, and add a @RestControllerAdvice that turns MethodArgumentNotValidException into an RFC 9457 ProblemDetail containing field and message pairs. springdoc-openapi publishes those constraints as required, maxLength and pattern in the OpenAPI schema, so you can generate Zod schemas from it, for example with orval, and plug them into React Hook Form through zodResolver. Cross-field and database rules such as a unique email cannot live in the client, so the form maps the ProblemDetail field errors back with setError. Verify with a contract test that posts each invalid case and asserts the returned field name. Pitfall: regexes that behave differently in Java and JavaScript; keep patterns simple and test them on both sides."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Coding",
+    "question": "Java FDE: A customer's React page freezes when rendering 10,000 order rows returned by a Spring Boot endpoint. Show how you would fix it on both the frontend and the API.",
+    "answer": "Stop sending and rendering everything at once: paginate on the API and virtualise the list so the DOM only holds the visible rows.\n\nimport { useVirtualizer } from \"@tanstack/react-virtual\";\nimport { useRef } from \"react\";\n\nexport function OrderTable({ rows }: { rows: Order[] }) {\n  const parentRef = useRef<HTMLDivElement>(null);\n  const v = useVirtualizer({\n    count: rows.length,\n    getScrollElement: () => parentRef.current,\n    estimateSize: () => 36,\n    overscan: 10,\n  });\n  return (\n    <div ref={parentRef} style={{ height: 600, overflow: \"auto\" }}>\n      <div style={{ height: v.getTotalSize(), position: \"relative\" }}>\n        {v.getVirtualItems().map((item) => (\n          <div key={rows[item.index].id}\n               style={{ position: \"absolute\", top: 0, width: \"100%\", height: item.size,\n                        transform: `translateY(${item.start}px)` }}>\n            {rows[item.index].reference} {rows[item.index].status}\n          </div>\n        ))}\n      </div>\n    </div>\n  );\n}\n\nRendering cost drops from O(n) DOM nodes to O(visible) nodes, roughly 30 regardless of n. On the API, accept a Pageable and return Page<OrderDto>, or for deep scrolling use keyset pagination (where id > :lastId order by id limit 100), which stays fast where large OFFSET values degrade. Use stable keys, not array indexes, and memoise row components. Verify with the React Profiler and the Performance panel. Pitfall: virtualising but still filtering and sorting 10,000 items on every keystroke; debounce input or push filtering to the server."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Implementation / Workflow",
+    "question": "Java FDE: What are the two common ways to build and serve a React or Angular SPA alongside a Spring Boot API, and how do you stop client-side routes returning 404 on browser refresh?",
+    "answer": "Either bundle the built SPA into the Spring Boot jar, or serve it separately from nginx or a CDN and proxy /api to Spring Boot. For the bundled option, the frontend-maven-plugin runs npm ci and npm run build during mvn package and copies the output into src/main/resources/static, giving one artefact and one deployment, which suits small internal tools. For the separate option, a multi-stage Dockerfile builds the SPA in a node image and copies dist into an nginx image, so frontend and backend deploy and scale independently and static files get proper caching. Deep links such as /orders/42 return 404 on refresh because the server looks for a file at that path. In nginx, use try_files $uri $uri/ /index.html; in Spring, forward non-API, non-file paths to index.html from a small controller. Pitfall: caching index.html aggressively; give hashed assets long cache headers and index.html no-cache so users pick up new releases."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Frontend and Full-Stack Integration",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Scenario",
+    "question": "Java FDE: Frontend and backend developers on a customer project keep breaking each other with mismatched DTO fields. How would you introduce OpenAPI-generated TypeScript clients for the Spring Boot services, and what are the trade-offs?",
+    "answer": "Make the OpenAPI document the contract and generate the TypeScript client from it in CI, so a renamed field becomes a compile error rather than a production bug. Add springdoc-openapi-starter-webmvc-ui to the Spring Boot app, which serves /v3/api-docs, and export the spec during the build with the springdoc-openapi-maven-plugin. The frontend runs openapi-generator-cli with the typescript-fetch or typescript-axios generator, or openapi-typescript for types only, from an npm script, and CI fails if regenerated code differs from what is committed. Add a breaking-change check such as oasdiff between the main branch spec and the pull request spec. Trade-offs: generated code is verbose and opinionated, and annotations need care, for example @Schema(requiredMode = REQUIRED), or every field becomes optional in TypeScript. Some teams prefer spec-first, writing the YAML and generating Spring interfaces with the spring generator. Pitfall: generating from a live dev server at build time, which makes builds flaky."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Production Troubleshooting",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: A customer reports the order history page takes 9 seconds to load. Walk through how you debug it end to end across the browser, the Spring Boot API, and the database.",
+    "answer": "Measure where the 9 seconds go before changing anything, moving from browser to API to database. In Chrome DevTools, the Network waterfall shows whether the time is one slow request, many sequential requests or a large payload; a long Time to First Byte points to the server, a long download points to payload size, and a long Performance trace after the response points to rendering. On the API, use distributed tracing (Micrometer Tracing or OpenTelemetry into Jaeger, Tempo or X-Ray) or the actuator http.server.requests timer to split time between controller, downstream calls and SQL. In the database, enable Hibernate statistics or SQL logging to spot N+1 queries, then run EXPLAIN ANALYZE on the slow statement to find missing indexes or sequential scans. A typical finding: a lazy collection loaded per order produces 400 queries, and a fetch join or @EntityGraph plus an index on customer_id brings it under 300 ms. Verify with the same trace afterwards and add a latency alert."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Production Troubleshooting",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: After moving a Spring Boot service behind a cloud load balancer, users see intermittent 502 errors, mostly on idle connections and during deployments. How do you diagnose and fix it?",
+    "answer": "Intermittent 502s usually mean the load balancer reused a connection the backend had already closed, or routed to a pod that was shutting down. First correlate load balancer logs with deploy times and app logs: on AWS ALB, look for elb_status_code 502 with no target status; on GCP, look for statusDetails such as backend_connection_closed_before_data_sent_to_client. For idle-connection 502s, the backend keep-alive timeout must exceed the load balancer idle timeout; ALB defaults to 60 seconds, so set server.tomcat.keep-alive-timeout to around 75s, and on GCP the backend keep-alive should exceed the 600-second load balancer timeout. For deployment 502s, set server.shutdown=graceful with spring.lifecycle.timeout-per-shutdown-phase, add a Kubernetes preStop sleep of about 10 seconds so endpoints are removed before Tomcat stops accepting, and gate traffic with readiness probes on /actuator/health/readiness. Verify by running a load test during a rolling deploy and confirming zero 502s."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Production Troubleshooting",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Troubleshooting",
+    "question": "Java FDE: After a release, a Spring Boot service's live thread count climbs from 200 to several thousand over a day until it fails with OutOfMemoryError: unable to create native thread. How do you find and fix the thread leak?",
+    "answer": "This is a thread leak, not a heap problem: something in the new release creates threads or thread pools and never shuts them down, so find who owns the threads and make them shared, bounded and managed. Confirm the trend with the Micrometer metric jvm_threads_live_threads in Grafana and correlate the start of the climb with the deploy. Take a thread dump with jcmd 1 Thread.print or jstack and group threads by name; thousands of pool-N-thread-1 entries point to Executors.newFixedThreadPool called per request, while repeated HttpClient or Kafka client thread names point to a client built per call. Diff the release for executors, schedulers, HTTP clients and consumers created inside request paths. Fix by defining one ThreadPoolTaskExecutor or client as a Spring bean with a bounded pool, a named thread factory and proper shutdown, and reuse it. Pitfall: raising the pod PID limit or -Xss only delays the crash. Roll back first if the service is close to failing, then verify with a soak test that shows a flat thread count."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Production Troubleshooting",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Scenario",
+    "question": "Java FDE: Thirty minutes after deploying a new release to a customer's production environment, the error rate on one endpoint rises from 0.2% to 3%. How do you decide between rolling back and fixing forward?",
+    "answer": "Default to rollback when users are impacted and the cause is not understood within minutes, because restoring service beats debugging live. I quickly check three things: does the spike clearly line up with the deploy on dashboards, is the previous version still deployable (kubectl rollout undo deployment/orders or redeploying the prior image tag), and did the release include an irreversible change such as a destructive Flyway migration. If schema changes followed expand and contract, rollback is safe, so I do it and then investigate on staging with the captured logs. Fix forward only when the fix is tiny, understood and faster through the pipeline than a rollback, or when rollback is unsafe because data already written in a new format would break the old version. Feature flags offer a third option: switch off the new code path without redeploying. Afterwards, add canary analysis so a 3% error rate halts a rollout automatically. Pitfall: debating for an hour while customers keep failing."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Production Troubleshooting",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Scenario",
+    "question": "Java FDE: You are the engineer on point during a customer-facing outage of a payments API. How do you write the first incident update and the follow-ups for business stakeholders?",
+    "answer": "Send a short, factual update within the agreed time, typically 15 minutes, covering impact, current status, next step and next update time, without speculation. For example: \"Since 14:05 UTC about 30% of card payments in the customer portal are failing. Orders and refunds are unaffected. Failures began after a configuration change and we are rolling it back now. Next update at 14:45 UTC, or sooner if resolved.\" Write in business terms: who is affected, what they cannot do, and any workaround. Avoid blame and unverified root causes; say what is confirmed and what is still being investigated. Follow-ups keep the same structure and state what changed since the last message. On resolution, confirm the end time and the metrics showing recovery, and commit to a post-incident review with root cause and actions within an agreed window such as five working days. Pitfall: going silent while debugging; assign one person to communications so engineers can focus on the fix."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Customer-Facing FDE",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Advanced",
+    "questionType": "Scenario",
+    "question": "Java FDE: A customer's operations lead says they want 'something to track supplier delays' and you have one week to show a working prototype. How do you approach it?",
+    "answer": "Shrink the ask to one workflow that proves value, build it end to end with boring technology, and put it in front of a user by day three. On day one I spend an hour with the operations lead and a real planner walking through how delays are tracked today, collect a sample spreadsheet, and agree a success statement such as \"a planner sees all late shipments for this week on one screen and can flag a reason\". Days two to four, I build a thin vertical slice: a Spring Boot app with Spring Data JPA on PostgreSQL, a CSV import or one supplier API integration, a few REST endpoints, and a React page with a filterable table, deployed with Docker to a dev environment so they use a URL rather than my laptop. Midweek I review it with the planner and adjust. On day five I demo with their data and list what is mocked and what production needs, such as SSO, audit and error handling. Pitfall: building microservices and Kafka before anyone confirms the core screen is useful."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Customer-Facing FDE",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Conceptual",
+    "question": "Java FDE: What discovery questions do you ask before starting an integration between a customer's Spring Boot platform and a third-party system such as a CRM or ERP?",
+    "answer": "Ask about the business outcome first, then the data, the interface, and the operational constraints. Business: what process does this integration replace, who uses the result, and how will success be measured. Data: which entities flow in which direction, which system is the source of truth, how records are matched across systems, and what volume and freshness are needed, for example a nightly batch versus near-real-time. Interface: does the third party offer REST, SOAP, webhooks, SFTP files or a message queue, what are the authentication method and rate limits, is there a sandbox, and is there an OpenAPI spec. Operations: what happens when the other system is down, who gets alerted, how failed records are retried or replayed, and which fields are personal data subject to GDPR or retention rules. Also ask who owns each system and how changes are approved. Pitfall: assuming the API documentation matches production; request real sample payloads and sandbox access early."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Customer-Facing FDE",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Scenario",
+    "question": "Java FDE: You are demoing a new full-stack feature to the customer's business stakeholders rather than engineers. How do you prepare and run the demo?",
+    "answer": "Demo a business story, not the architecture, and rehearse it on the environment you will actually use. Beforehand, agree the audience and the decision you want from them, such as approval to pilot with one team. Script a five to ten minute flow around a real task, for example \"a claims handler finds a delayed claim and escalates it\", using realistic seeded data rather than obvious test records. Rehearse twice on the demo environment, freeze deployments that day, and keep a short recorded video as a backup in case the network or SSO fails. During the demo, state the problem in their words, show the before and after, keep technical detail to one sentence unless asked, and pause for questions after each step. Capture feedback live in a shared document, separating bugs, new requests and decisions. Close by confirming the next step and its owner. Pitfall: showing every feature; stakeholders remember the one workflow that solved their pain."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Customer-Facing FDE",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Intermediate",
+    "questionType": "Behavioral",
+    "question": "Java FDE: Tell me about a time a customer kept adding requirements to a fixed-timeline delivery. How did you handle the scope creep?",
+    "answer": "Situation: on a six-week engagement for a fictional freight company, Bluewater Freight, building a Spring Boot and Angular booking portal, the customer's product owner added a new request almost every standup, including PDF invoices and a mobile layout. Task: I owned delivery and had to protect the go-live date without damaging the relationship. Action: I created a visible change log, and for every new request I wrote a one-line estimate and its impact on the date, then asked the product owner to choose: swap it for something of equal size, move it to phase two, or extend the timeline. I also ran a short session to restate the original goal so we agreed what done meant for launch. Result: we shipped booking and tracking on time; PDF invoices moved to phase two and shipped three weeks later. The product owner said the change log made prioritisation easier, and I now set one up on every project from day one."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Customer-Facing FDE",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Beginner",
+    "questionType": "Scenario",
+    "question": "Java FDE: A non-technical stakeholder asks why your design uses Kafka between the order and inventory services instead of direct REST calls. How do you explain it?",
+    "answer": "I use an everyday analogy and tie it to a business risk they care about. A REST call is like a phone call: the order system rings inventory and waits for an answer, so if inventory is busy or down, the customer's order stalls or fails. Kafka is like a durable shared notice board: the order system posts \"order 1234 placed\" and carries on, and inventory reads it when it can, even after being offline for ten minutes, because messages are stored and can be replayed. The business benefit is that a slow downstream system no longer blocks checkout, and new consumers such as reporting can read the same events without changing the order system. I am honest about the cost too: updates arrive slightly later, usually within seconds, and we run and monitor extra infrastructure. I close by saying where we still use REST, for example checking stock before checkout, where an immediate answer is required. Pitfall: leading with partitions, brokers and consumer groups."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Customer-Facing FDE",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Behavioral",
+    "question": "Java FDE: Describe how you owned a customer solution end to end, from first build through production and handoff to the customer's support team.",
+    "answer": "Situation: a fictional energy retailer, Coralpeak Energy, needed an integration pulling meter readings from a partner API into their billing platform, and I was the only engineer from our side. Task: build it, run it in production, and leave their small support team able to own it within three months. Action: I built a Spring Boot service with a scheduled job, Resilience4j retries, idempotent upserts keyed by reading ID and a dead-letter table for bad records, deployed to Kubernetes through a GitHub Actions pipeline with unit tests and Testcontainers integration tests. I added Micrometer metrics, Grafana dashboards and alerts on lag and error count, then wrote a runbook for each alert. For handoff, their engineers shadowed me on call for two weeks, then I shadowed them for two more, and we ran a recorded failure drill. Result: no billing cycle was missed, their support team resolved incidents without escalation from week four, and my runbook format became their template."
+  },
+  {
+    "source": "Java Full-Stack FDE Bank",
+    "section": "Java Full-Stack Forward Deployed Engineering",
+    "category": "Java Full-Stack Forward Deployed Engineering - Customer-Facing FDE",
+    "topic": "Java Full-Stack Forward Deployed Engineering",
+    "difficulty": "Expert",
+    "questionType": "Behavioral",
+    "question": "Java FDE: Give a STAR answer about resolving a serious production issue while working on site with a customer.",
+    "answer": "Situation: while on site with a fictional retail customer, Maplecrest Stores, during their peak sale weekend, their Spring Boot checkout API started timing out and completed orders dropped by about 40%. Task: as the forward deployed engineer, I had to restore checkout quickly and keep their leadership informed. Action: I opened a bridge call, asked a colleague to send stakeholder updates every 20 minutes, and checked dashboards: the HikariCP pool was exhausted, with request threads waiting for connections. A thread dump from jcmd Thread.print showed requests blocked on a new loyalty-points call that ran inside the database transaction with no timeout, while the loyalty vendor was slow. I switched the loyalty call off with an existing feature flag, which freed the pool within minutes, then moved the call outside the transaction with a 2-second timeout and a circuit breaker, deploying that evening after testing on staging. Result: checkout recovered in 25 minutes, the sale finished on target, and the post-incident review added timeouts to every outbound client."
+  },
+  {
     "source": "Fixed Mock Interview Sets",
     "section": "Actually Asked Interview Questions - Latest Additions",
     "category": "Current Tools and Delivery Experience",
